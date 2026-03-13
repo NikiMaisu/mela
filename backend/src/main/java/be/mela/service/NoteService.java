@@ -21,24 +21,27 @@ public class NoteService {
         this.objectMapper = objectMapper;
     }
 
-    public List<NoteDto> getAllNotes() {
-        return noteRepository.findAll().stream().map(this::toDto).toList();
+    public List<NoteDto> getAllNotes(Long userId) {
+        return noteRepository.findAllByUserId(userId).stream().map(this::toDto).toList();
     }
 
-    public NoteDto createNote(NoteDto dto) {
+    public NoteDto createNote(NoteDto dto, Long userId) {
         Note note = new Note();
+        note.setUserId(userId);
         applyDto(note, dto);
         return toDto(noteRepository.save(note));
     }
 
-    public NoteDto updateNote(Long id, NoteDto dto) {
-        Note note = noteRepository.findById(id)
+    public NoteDto updateNote(Long id, NoteDto dto, Long userId) {
+        Note note = noteRepository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new RuntimeException("note not found"));
         applyDto(note, dto);
         return toDto(noteRepository.save(note));
     }
 
-    public void deleteNote(Long id) {
+    public void deleteNote(Long id, Long userId) {
+        noteRepository.findByIdAndUserId(id, userId)
+                .orElseThrow(() -> new RuntimeException("note not found"));
         noteRepository.deleteById(id);
     }
 

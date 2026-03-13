@@ -29,6 +29,9 @@ public class Note {
     @Column(columnDefinition = "TEXT")
     private String drawings;
 
+    @Column(nullable = false)
+    private Long userId;
+
     @NotNull
     private LocalDateTime createdAt;
 
@@ -54,5 +57,7 @@ public class Note {
     public void setColor(String color) { this.color = color; }
     public String getDrawings() { return drawings; }
     public void setDrawings(String drawings) { this.drawings = drawings; }
+    public Long getUserId() { return userId; }
+    public void setUserId(Long userId) { this.userId = userId; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }
