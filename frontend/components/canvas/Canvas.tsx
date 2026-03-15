@@ -7,6 +7,7 @@ import CanvasString, { stringPath } from './CanvasString';
 import TitleCard from './TitleCard';
 import Toolbar from './Toolbar';
 import NoteService from '@services/NoteService';
+import { useAuth } from '@context/AuthContext';
 
 type Transform = { x: number; y: number; scale: number };
 
@@ -43,6 +44,7 @@ const bezierIntersectsCut = (
 };
 
 const Canvas = () => {
+  const { user } = useAuth();
   const [transform, setTransform] = useState<Transform>({ x: 0, y: 0, scale: 1 });
   const [activeTool, setActiveTool] = useState<Tool>('pointer');
   const [notes, setNotes] = useState<Note[]>([]);
@@ -62,8 +64,9 @@ const Canvas = () => {
   useEffect(() => { notesRef.current = notes; }, [notes]);
 
   useEffect(() => {
+    if (!user) { setNotes([]); return; }
     NoteService.getAll().then(setNotes).catch(() => {});
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -176,6 +179,7 @@ const Canvas = () => {
     if ((e.target as HTMLElement).closest('[data-note]')) return;
     clearTimeout(clickTimerRef.current);
     const world = toWorld(e.clientX, e.clientY);
+    if (!user) return;
     const draft = {
       x: world.x - 104,
       y: world.y - 56,

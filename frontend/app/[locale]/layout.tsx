@@ -1,4 +1,5 @@
 import { AuthProvider } from '@context/AuthContext';
+import AccountMenu from '@components/auth/AccountMenu';
 import '@styles/globals.css';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
@@ -39,6 +40,7 @@ const RootLayout = async ({
         </svg>
         <NextIntlClientProvider locale={locale} messages={messages}>
           <AuthProvider>
+            <AccountMenu />
             <main>{children}</main>
           </AuthProvider>
         </NextIntlClientProvider>
