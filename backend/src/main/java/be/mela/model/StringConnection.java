@@ -34,6 +34,8 @@ public class StringConnection {
 
     private Long noteId2;
 
+    private String style = "thread";
+
     public StringConnection() {}
 
     public Long getId() { return id; }
@@ -55,4 +57,6 @@ public class StringConnection {
     public void setNoteId1(Long noteId1) { this.noteId1 = noteId1; }
     public Long getNoteId2() { return noteId2; }
     public void setNoteId2(Long noteId2) { this.noteId2 = noteId2; }
+    public String getStyle() { return style; }
+    public void setStyle(String style) { this.style = style; }
 }

@@ -23,6 +23,11 @@ export type StringConnection = {
   y1: number;
   x2: number;
   y2: number;
+  color: string;
+  label?: string;
+  noteId1?: string;
+  noteId2?: string;
+  style?: string;
 };
 
 export type StatusMessage = {

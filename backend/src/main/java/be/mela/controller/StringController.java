@@ -39,6 +39,11 @@ public class StringController {
         return stringService.updateStringLabel(id, body.get("label"), principal.getId());
     }
 
+    @PatchMapping("/{id}/style")
+    public StringDto updateStyle(@PathVariable Long id, @RequestBody java.util.Map<String, String> body, @AuthenticationPrincipal UserPrincipal principal) {
+        return stringService.updateStringStyle(id, body.get("style"), principal.getId());
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteString(@PathVariable Long id, @AuthenticationPrincipal UserPrincipal principal) {
         stringService.deleteString(id, principal.getId());

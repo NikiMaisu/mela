@@ -31,6 +31,7 @@ public class StringService {
         if (dto.getLabel() != null) s.setLabel(dto.getLabel());
         s.setNoteId1(dto.getNoteId1());
         s.setNoteId2(dto.getNoteId2());
+        if (dto.getStyle() != null) s.setStyle(dto.getStyle());
         return toDto(stringRepository.save(s));
     }
 
@@ -48,6 +49,13 @@ public class StringService {
         return toDto(stringRepository.save(s));
     }
 
+    public StringDto updateStringStyle(Long id, String style, Long userId) {
+        StringConnection s = stringRepository.findByIdAndUserId(id, userId)
+                .orElseThrow(() -> new RuntimeException("string not found"));
+        s.setStyle(style);
+        return toDto(stringRepository.save(s));
+    }
+
     public void deleteString(Long id, Long userId) {
         stringRepository.findByIdAndUserId(id, userId)
                 .orElseThrow(() -> new RuntimeException("string not found"));
@@ -55,6 +63,6 @@ public class StringService {
     }
 
     private StringDto toDto(StringConnection s) {
-        return new StringDto(s.getId(), s.getX1(), s.getY1(), s.getX2(), s.getY2(), s.getColor(), s.getLabel(), s.getNoteId1(), s.getNoteId2());
+        return new StringDto(s.getId(), s.getX1(), s.getY1(), s.getX2(), s.getY2(), s.getColor(), s.getLabel(), s.getNoteId1(), s.getNoteId2(), s.getStyle());
     }
 }

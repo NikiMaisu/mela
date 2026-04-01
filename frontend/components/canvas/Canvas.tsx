@@ -7,6 +7,7 @@ import CanvasString, { stringPath } from './CanvasString';
 import TitleCard from './TitleCard';
 import Toolbar from './Toolbar';
 import NoteService from '@services/NoteService';
+import StringService from '@services/StringService';
 import { useAuth } from '@context/AuthContext';
 
 type Transform = { x: number; y: number; scale: number };
@@ -49,7 +50,7 @@ const Canvas = () => {
   const [activeTool, setActiveTool] = useState<Tool>('pointer');
   const [notes, setNotes] = useState<Note[]>([]);
   const [strings, setStrings] = useState<StringConnection[]>([]);
-  const [pendingPin, setPendingPin] = useState<{ x: number; y: number } | null>(null);
+  const [pendingPin, setPendingPin] = useState<{ x: number; y: number; noteId?: string } | null>(null);
   const [cursorWorld, setCursorWorld] = useState<{ x: number; y: number } | null>(null);
   const [isCutting, setIsCutting] = useState(false);
   const [cutTrail, setCutTrail] = useState<{ x: number; y: number }[]>([]);
@@ -57,15 +58,16 @@ const Canvas = () => {
   const isPanning = useRef(false);
   const lastPointer = useRef({ x: 0, y: 0 });
   const lastCutWorld = useRef<{ x: number; y: number } | null>(null);
-  const clickTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const notesRef = useRef<Note[]>([]);
   const saveTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const pendingPinRef = useRef<{ x: number; y: number; noteId?: string } | null>(null);
 
   useEffect(() => { notesRef.current = notes; }, [notes]);
 
   useEffect(() => {
-    if (!user) { setNotes([]); return; }
+    if (!user) { setNotes([]); setStrings([]); return; }
     NoteService.getAll().then(setNotes).catch(() => {});
+    StringService.getAll().then(setStrings).catch(() => {});
   }, [user?.id]);
 
   useEffect(() => {
@@ -89,7 +91,10 @@ const Canvas = () => {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setPendingPin(null);
+      if (e.key === 'Escape') {
+        pendingPinRef.current = null;
+        setPendingPin(null);
+      }
       if (e.key === 'c' || e.key === 'C') {
         setIsCutting(true);
         lastCutWorld.current = null;
@@ -137,10 +142,18 @@ const Canvas = () => {
       setCutTrail(prev => [...prev.slice(-40), { x: e.clientX, y: e.clientY }]);
       if (lastCutWorld.current) {
         const { x: cx1, y: cy1 } = lastCutWorld.current;
-        setStrings(prev => prev.filter(s => {
-          const { mx, my } = stringPath(s.x1, s.y1, s.x2, s.y2);
-          return !bezierIntersectsCut(s.x1, s.y1, mx, my, s.x2, s.y2, cx1, cy1, world.x, world.y);
-        }));
+        setStrings(prev => {
+          const kept: typeof prev = [];
+          const cut: typeof prev = [];
+          prev.forEach(s => {
+            const { mx, my } = stringPath(s.x1, s.y1, s.x2, s.y2);
+            bezierIntersectsCut(s.x1, s.y1, mx, my, s.x2, s.y2, cx1, cy1, world.x, world.y)
+              ? cut.push(s)
+              : kept.push(s);
+          });
+          cut.forEach(s => StringService.remove(s.id).catch(() => {}));
+          return kept;
+        });
       }
       lastCutWorld.current = world;
       return;
@@ -160,24 +173,43 @@ const Canvas = () => {
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (isCutting) return;
     if (activeTool !== 'string') return;
-    if ((e.target as HTMLElement).closest('[data-note]')) return;
-    const { clientX, clientY } = e;
-    clearTimeout(clickTimerRef.current);
-    clickTimerRef.current = setTimeout(() => {
-      const world = toWorld(clientX, clientY);
-      setPendingPin(prev => {
-        if (!prev) return world;
-        setStrings(s => [...s, { id: crypto.randomUUID(), x1: prev.x, y1: prev.y, x2: world.x, y2: world.y }]);
-        return null;
+    const world = toWorld(e.clientX, e.clientY);
+
+    const noteEl = (e.target as HTMLElement).closest('[data-note-id]') as HTMLElement | null;
+    let pinNoteId: string | undefined;
+    if (noteEl) {
+      const id = noteEl.getAttribute('data-note-id') ?? undefined;
+      const note = notesRef.current.find(n => n.id === id);
+      if (note && id) {
+        pinNoteId = id;
+        world.x = note.x + (note.width ?? 208) / 2;
+        world.y = note.y + (note.height ?? 120) / 2;
+      }
+    }
+
+    const prev = pendingPinRef.current;
+    if (!prev) {
+      pendingPinRef.current = { ...world, noteId: pinNoteId };
+      setPendingPin({ ...world, noteId: pinNoteId });
+    } else {
+      pendingPinRef.current = null;
+      setPendingPin(null);
+      if (!user) return;
+      const draft = { x1: prev.x, y1: prev.y, x2: world.x, y2: world.y, color: '#A81C07', noteId1: prev.noteId, noteId2: pinNoteId };
+      const tempId = crypto.randomUUID();
+      setStrings(s => [...s, { id: tempId, ...draft }]);
+      StringService.create(draft).then(saved => {
+        setStrings(s => s.map(c => c.id === tempId ? saved : c));
+      }).catch(() => {
+        setStrings(s => s.filter(c => c.id !== tempId));
       });
-    }, 220);
+    }
   };
 
   const handleDoubleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (isCutting) return;
-    if (activeTool !== 'pointer' && activeTool !== 'string') return;
+    if (activeTool !== 'pointer') return;
     if ((e.target as HTMLElement).closest('[data-note]')) return;
-    clearTimeout(clickTimerRef.current);
     const world = toWorld(e.clientX, e.clientY);
     if (!user) return;
     const draft = {
@@ -204,6 +236,10 @@ const Canvas = () => {
     }, 600));
   };
 
+  const updateString = (id: string, changes: Partial<StringConnection>) => {
+    setStrings(prev => prev.map(s => s.id === id ? { ...s, ...changes } : s));
+  };
+
   const deleteNote = (id: string) => {
     setNotes(prev => prev.filter(n => n.id !== id));
     NoteService.remove(id).catch(() => {});
@@ -213,6 +249,19 @@ const Canvas = () => {
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
     setTransform({ x: rect.width / 2, y: rect.height / 2, scale: 1 });
+  };
+
+  const resolveCoords = (s: StringConnection) => {
+    let { x1, y1, x2, y2 } = s;
+    if (s.noteId1) {
+      const n = notes.find(n => n.id === s.noteId1);
+      if (n) { x1 = n.x + (n.width ?? 208) / 2; y1 = n.y + (n.height ?? 120) / 2; }
+    }
+    if (s.noteId2) {
+      const n = notes.find(n => n.id === s.noteId2);
+      if (n) { x2 = n.x + (n.width ?? 208) / 2; y2 = n.y + (n.height ?? 120) / 2; }
+    }
+    return { x1, y1, x2, y2 };
   };
 
   const dotSpacing = 40 * transform.scale;
@@ -243,34 +292,8 @@ const Canvas = () => {
 
       <div
         className="absolute top-0 left-0 origin-top-left"
-        style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})` }}
+        style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`, zIndex: 20 }}
       >
-        <svg className="absolute top-0 left-0 overflow-visible" style={{ width: 0, height: 0 }}>
-          {strings.map(s => (
-            <CanvasString
-              key={s.id}
-              string={s}
-              onDelete={id => setStrings(prev => prev.filter(s => s.id !== id))}
-            />
-          ))}
-          {pendingPin && (
-            <circle cx={pendingPin.x} cy={pendingPin.y} r={5} fill="#A81C07" filter="url(#hand-drawn)" />
-          )}
-          {preview && pendingPin && cursorWorld && (
-            <g opacity={0.55}>
-              <path
-                d={preview.d}
-                stroke="#A81C07"
-                strokeWidth="14"
-                fill="none"
-                strokeLinecap="round"
-                strokeDasharray="8 6"
-              />
-              <circle cx={cursorWorld.x} cy={cursorWorld.y} r={5} fill="#A81C07" />
-            </g>
-          )}
-        </svg>
-
         <TitleCard scale={transform.scale} />
         {notes.map(note => (
           <CanvasNote
@@ -298,6 +321,41 @@ const Canvas = () => {
         </svg>
       )}
 
+      <svg
+        className="fixed inset-0 w-full h-full pointer-events-none"
+        style={{ zIndex: 5 }}
+      >
+        <g transform={`translate(${transform.x}, ${transform.y}) scale(${transform.scale})`} style={{ pointerEvents: 'all' }}>
+          {strings.map(s => (
+            <CanvasString
+              key={s.id}
+              string={{ ...s, ...resolveCoords(s) }}
+              onUpdate={updateString}
+              onDelete={id => {
+                setStrings(prev => prev.filter(s => s.id !== id));
+                StringService.remove(id).catch(() => {});
+              }}
+            />
+          ))}
+          {pendingPin && (
+            <circle cx={pendingPin.x} cy={pendingPin.y} r={5} fill="#A81C07" filter="url(#hand-drawn)" />
+          )}
+          {preview && pendingPin && cursorWorld && (
+            <g opacity={0.55}>
+              <path
+                d={preview.d}
+                stroke="#A81C07"
+                strokeWidth="14"
+                fill="none"
+                strokeLinecap="round"
+                strokeDasharray="8 6"
+              />
+              <circle cx={cursorWorld.x} cy={cursorWorld.y} r={5} fill="#A81C07" />
+            </g>
+          )}
+        </g>
+      </svg>
+
       <button
         className="fixed bottom-4 right-4"
         style={{
@@ -310,15 +368,16 @@ const Canvas = () => {
           fontSize: '0.75rem',
           color: '#252422',
           cursor: 'pointer',
+          zIndex: 50,
         }}
         onClick={resetCamera}
       >
         back to start
       </button>
 
-      <Toolbar activeTool={activeTool} onToolChange={tool => { setActiveTool(tool); if (tool !== 'string') setPendingPin(null); }} />
+      <Toolbar activeTool={activeTool} onToolChange={tool => { setActiveTool(tool); if (tool !== 'string') { pendingPinRef.current = null; setPendingPin(null); } }} />
 
-      <p className="fixed bottom-4 left-1/2 -translate-x-1/2 text-xs text-ink/50 pointer-events-none">
+      <p className="fixed bottom-4 left-1/2 -translate-x-1/2 text-xs text-ink/50 pointer-events-none" style={{ zIndex: 50 }}>
         {isCutting
           ? 'slide through strings to cut them'
           : activeTool === 'pointer'

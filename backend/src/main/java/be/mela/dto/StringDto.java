@@ -10,10 +10,11 @@ public class StringDto {
     private String label;
     private Long noteId1;
     private Long noteId2;
+    private String style = "thread";
 
     public StringDto() {}
 
-    public StringDto(Long id, double x1, double y1, double x2, double y2, String color, String label, Long noteId1, Long noteId2) {
+    public StringDto(Long id, double x1, double y1, double x2, double y2, String color, String label, Long noteId1, Long noteId2, String style) {
         this.id = id;
         this.x1 = x1;
         this.y1 = y1;
@@ -23,6 +24,7 @@ public class StringDto {
         this.label = label;
         this.noteId1 = noteId1;
         this.noteId2 = noteId2;
+        this.style = style != null ? style : "thread";
     }
 
     public Long getId() { return id; }
@@ -43,4 +45,6 @@ public class StringDto {
     public void setNoteId1(Long noteId1) { this.noteId1 = noteId1; }
     public Long getNoteId2() { return noteId2; }
     public void setNoteId2(Long noteId2) { this.noteId2 = noteId2; }
+    public String getStyle() { return style; }
+    public void setStyle(String style) { this.style = style; }
 }
