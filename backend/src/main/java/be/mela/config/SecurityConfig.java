@@ -41,6 +41,7 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/auth/**").permitAll()
+                        .requestMatchers("/admin/**").permitAll()
                         .requestMatchers("/notes/**").authenticated()
                         .requestMatchers("/strings/**").authenticated()
                         .anyRequest().permitAll()
