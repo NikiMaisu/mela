@@ -26,6 +26,10 @@ public class Note {
 
     private String color;
 
+    private double rotation = 0;
+
+    private String shape = "rectangle";
+
     @Column(columnDefinition = "TEXT")
     private String drawings;
 
@@ -55,6 +59,10 @@ public class Note {
     public void setContent(String content) { this.content = content; }
     public String getColor() { return color; }
     public void setColor(String color) { this.color = color; }
+    public double getRotation() { return rotation; }
+    public void setRotation(double rotation) { this.rotation = rotation; }
+    public String getShape() { return shape; }
+    public void setShape(String shape) { this.shape = shape; }
     public String getDrawings() { return drawings; }
     public void setDrawings(String drawings) { this.drawings = drawings; }
     public Long getUserId() { return userId; }

@@ -16,15 +16,20 @@ const RootLayout = async ({
 
   return (
     <html lang={locale}>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&display=swap" rel="stylesheet" />
+      </head>
       <body>
         <svg style={{ position: 'absolute', width: 0, height: 0, overflow: 'hidden' }}>
           <defs>
-            <filter id="hand-drawn" x="-8%" y="-8%" width="116%" height="116%">
+            <filter id="hand-drawn" x="-200%" y="-10%" width="500%" height="120%">
               <feTurbulence type="fractalNoise" baseFrequency="0.065" numOctaves="2" result="noise">
                 <animate
                   attributeName="seed"
                   values="3;9;6;2;11;3"
-                  dur="4s"
+                  dur="18s"
                   calcMode="discrete"
                   repeatCount="indefinite"
                 />

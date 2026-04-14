@@ -52,6 +52,8 @@ public class NoteService {
         note.setHeight(dto.getHeight());
         note.setContent(dto.getContent());
         note.setColor(dto.getColor());
+        note.setRotation(dto.getRotation());
+        if (dto.getShape() != null) note.setShape(dto.getShape());
         note.setDrawings(jsonToString(dto.getDrawings()));
     }
 
@@ -64,6 +66,8 @@ public class NoteService {
         dto.setHeight(note.getHeight());
         dto.setContent(note.getContent());
         dto.setColor(note.getColor());
+        dto.setRotation(note.getRotation());
+        dto.setShape(note.getShape());
         dto.setDrawings(stringToJson(note.getDrawings()));
         dto.setCreatedAt(note.getCreatedAt());
         return dto;

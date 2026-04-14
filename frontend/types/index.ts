@@ -3,6 +3,7 @@ export type Tool = 'pointer' | 'string' | 'pencil' | 'eraser' | 'eraser-brush';
 export type DrawingPath = {
   id: string;
   points: { x: number; y: number }[];
+  color?: string;
 };
 
 export type Note = {
@@ -13,6 +14,8 @@ export type Note = {
   height: number;
   content: string;
   color: string;
+  rotation: number;
+  shape: string;
   drawings: DrawingPath[];
   createdAt: string;
 };

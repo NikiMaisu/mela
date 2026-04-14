@@ -12,6 +12,8 @@ public class NoteDto {
     private double height = 120;
     private String content;
     private String color;
+    private double rotation = 0;
+    private String shape = "rectangle";
     private JsonNode drawings;
     private LocalDateTime createdAt;
 
@@ -31,6 +33,10 @@ public class NoteDto {
     public void setContent(String content) { this.content = content; }
     public String getColor() { return color; }
     public void setColor(String color) { this.color = color; }
+    public double getRotation() { return rotation; }
+    public void setRotation(double rotation) { this.rotation = rotation; }
+    public String getShape() { return shape; }
+    public void setShape(String shape) { this.shape = shape; }
     public JsonNode getDrawings() { return drawings; }
     public void setDrawings(JsonNode drawings) { this.drawings = drawings; }
     public LocalDateTime getCreatedAt() { return createdAt; }

@@ -12,7 +12,7 @@ import { useAuth } from '@context/AuthContext';
 
 type Transform = { x: number; y: number; scale: number };
 
-const NOTE_COLORS = ['#ede0d4'];
+const NOTE_COLORS = ['#ede0d4', '#f9e4b7', '#d4edd4', '#d4e4f0', '#f0d4e4', '#e8d4f0', '#ffd6a5', '#252422'];
 
 const segmentsIntersect = (
   ax: number, ay: number, bx: number, by: number,
@@ -44,10 +44,13 @@ const bezierIntersectsCut = (
   return false;
 };
 
+const randomRotation = () => (Math.random() - 0.5) * 5.5;
+
 const Canvas = () => {
   const { user } = useAuth();
   const [transform, setTransform] = useState<Transform>({ x: 0, y: 0, scale: 1 });
   const [activeTool, setActiveTool] = useState<Tool>('pointer');
+  const [pencilColor, setPencilColor] = useState('#252422');
   const [notes, setNotes] = useState<Note[]>([]);
   const [strings, setStrings] = useState<StringConnection[]>([]);
   const [pendingPin, setPendingPin] = useState<{ x: number; y: number; noteId?: string } | null>(null);
@@ -212,13 +215,16 @@ const Canvas = () => {
     if ((e.target as HTMLElement).closest('[data-note]')) return;
     const world = toWorld(e.clientX, e.clientY);
     if (!user) return;
+    const colorIdx = notes.length % NOTE_COLORS.length;
     const draft = {
       x: world.x - 104,
       y: world.y - 56,
       width: 208,
       height: 120,
       content: '',
-      color: NOTE_COLORS[0],
+      color: NOTE_COLORS[colorIdx],
+      rotation: randomRotation(),
+      shape: 'rectangle',
       drawings: [],
     };
     NoteService.create(draft).then(saved => {
@@ -238,6 +244,24 @@ const Canvas = () => {
 
   const updateString = (id: string, changes: Partial<StringConnection>) => {
     setStrings(prev => prev.map(s => s.id === id ? { ...s, ...changes } : s));
+  };
+
+  const duplicateNote = (note: Note) => {
+    if (!user) return;
+    const draft = {
+      x: note.x + 28,
+      y: note.y + 28,
+      width: note.width,
+      height: note.height,
+      content: note.content,
+      color: note.color,
+      rotation: note.rotation + (Math.random() - 0.5) * 2,
+      shape: note.shape,
+      drawings: note.drawings,
+    };
+    NoteService.create(draft).then(saved => {
+      setNotes(prev => [...prev, saved]);
+    }).catch(() => {});
   };
 
   const deleteNote = (id: string) => {
@@ -301,8 +325,10 @@ const Canvas = () => {
             note={note}
             scale={transform.scale}
             activeTool={activeTool}
+            pencilColor={pencilColor}
             onUpdate={updateNote}
             onDelete={deleteNote}
+            onDuplicate={duplicateNote}
           />
         ))}
       </div>

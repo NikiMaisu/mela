@@ -8,6 +8,8 @@ const normalize = (data: Record<string, unknown>): Note => ({
   drawings: Array.isArray(data.drawings) ? data.drawings : [],
   width: typeof data.width === 'number' ? data.width : 208,
   height: typeof data.height === 'number' ? data.height : 120,
+  rotation: typeof data.rotation === 'number' ? data.rotation : 0,
+  shape: typeof data.shape === 'string' ? data.shape : 'rectangle',
 });
 
 const getAll = async (): Promise<Note[]> => {
