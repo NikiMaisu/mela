@@ -6,6 +6,7 @@ import CanvasNote from './CanvasNote';
 import CanvasString, { stringPath } from './CanvasString';
 import TitleCard from './TitleCard';
 import Toolbar from './Toolbar';
+import Minimap from './Minimap';
 import NoteService from '@services/NoteService';
 import StringService from '@services/StringService';
 import { useAuth } from '@context/AuthContext';
@@ -275,6 +276,16 @@ const Canvas = () => {
     setTransform({ x: rect.width / 2, y: rect.height / 2, scale: 1 });
   };
 
+  const panTo = (worldX: number, worldY: number) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setTransform(t => ({
+      ...t,
+      x: rect.width / 2 - worldX * t.scale,
+      y: rect.height / 2 - worldY * t.scale,
+    }));
+  };
+
   const resolveCoords = (s: StringConnection) => {
     let { x1, y1, x2, y2 } = s;
     if (s.noteId1) {
@@ -400,6 +411,17 @@ const Canvas = () => {
       >
         back to start
       </button>
+
+      <Minimap
+        notes={notes}
+        strings={strings}
+        viewX={transform.x}
+        viewY={transform.y}
+        viewScale={transform.scale}
+        screenW={containerRef.current?.clientWidth ?? window.innerWidth}
+        screenH={containerRef.current?.clientHeight ?? window.innerHeight}
+        onPanTo={panTo}
+      />
 
       <Toolbar activeTool={activeTool} onToolChange={tool => { setActiveTool(tool); if (tool !== 'string') { pendingPinRef.current = null; setPendingPin(null); } }} />
 
