@@ -58,6 +58,8 @@ const Canvas = () => {
   const [cursorWorld, setCursorWorld] = useState<{ x: number; y: number } | null>(null);
   const [isCutting, setIsCutting] = useState(false);
   const [cutTrail, setCutTrail] = useState<{ x: number; y: number }[]>([]);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const isPanning = useRef(false);
   const lastPointer = useRef({ x: 0, y: 0 });
@@ -65,8 +67,11 @@ const Canvas = () => {
   const notesRef = useRef<Note[]>([]);
   const saveTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const pendingPinRef = useRef<{ x: number; y: number; noteId?: string } | null>(null);
+  const transformRef = useRef(transform);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { notesRef.current = notes; }, [notes]);
+  useEffect(() => { transformRef.current = transform; }, [transform]);
 
   useEffect(() => {
     if (!user) { setNotes([]); setStrings([]); return; }
@@ -98,13 +103,24 @@ const Canvas = () => {
       if (e.key === 'Escape') {
         pendingPinRef.current = null;
         setPendingPin(null);
+        setSearchOpen(false);
+        setSearchQuery('');
       }
-      if (e.key === 'c' || e.key === 'C') {
-        setIsCutting(true);
-        lastCutWorld.current = null;
+      if ((e.key === 'f' || e.key === 'F') && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        setSearchOpen(v => { if (!v) setTimeout(() => searchInputRef.current?.focus(), 50); return !v; });
+        return;
       }
+      if (searchOpen) return;
+      if ((e.target as HTMLElement).tagName === 'TEXTAREA') return;
+      if (e.key === 'c' || e.key === 'C') { setIsCutting(true); lastCutWorld.current = null; }
+      if (e.key === 'a' || e.key === 'A') { setActiveTool('pointer'); pendingPinRef.current = null; setPendingPin(null); }
+      if (e.key === 's' || e.key === 'S') { setActiveTool('string'); }
+      if (e.key === 'p' || e.key === 'P') { setActiveTool('pencil'); pendingPinRef.current = null; setPendingPin(null); }
+      if (e.key === 'e' || e.key === 'E') { setActiveTool('eraser'); pendingPinRef.current = null; setPendingPin(null); }
     };
     const onKeyUp = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement).tagName === 'TEXTAREA') return;
       if (e.key === 'c' || e.key === 'C') {
         setIsCutting(false);
         setCutTrail([]);
@@ -117,14 +133,15 @@ const Canvas = () => {
       window.removeEventListener('keydown', onKeyDown);
       window.removeEventListener('keyup', onKeyUp);
     };
-  }, []);
+  }, [searchOpen]);
 
   const toWorld = (clientX: number, clientY: number) => {
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return { x: 0, y: 0 };
+    const t = transformRef.current;
     return {
-      x: (clientX - rect.left - transform.x) / transform.scale,
-      y: (clientY - rect.top - transform.y) / transform.scale,
+      x: (clientX - rect.left - t.x) / t.scale,
+      y: (clientY - rect.top - t.y) / t.scale,
     };
   };
 
@@ -304,6 +321,10 @@ const Canvas = () => {
     ? stringPath(pendingPin.x, pendingPin.y, cursorWorld.x, cursorWorld.y)
     : null;
 
+  const filteredNotes = searchQuery.trim()
+    ? notes.filter(n => n.content?.toLowerCase().includes(searchQuery.toLowerCase()))
+    : [];
+
   return (
     <div
       ref={containerRef}
@@ -393,6 +414,77 @@ const Canvas = () => {
         </g>
       </svg>
 
+      {searchOpen && (
+        <div
+          className="fixed inset-0 flex items-start justify-center pt-24"
+          style={{ zIndex: 200, backgroundColor: 'rgba(37,36,34,0.3)' }}
+          onClick={() => { setSearchOpen(false); setSearchQuery(''); }}
+          onPointerDown={e => e.stopPropagation()}
+        >
+          <div
+            style={{
+              backgroundColor: '#ede0d4',
+              border: '4px solid #252422',
+              borderRadius: '2px 4px 3px 5px / 5px 2px 4px 3px',
+              boxShadow: '8px 8px 0 0 #252422',
+              filter: 'url(#hand-drawn)',
+              width: 420,
+              maxWidth: '90vw',
+              padding: 16,
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="search notes..."
+              style={{
+                width: '100%',
+                background: 'transparent',
+                border: 'none',
+                outline: 'none',
+                fontSize: '1rem',
+                color: '#252422',
+                fontFamily: 'inherit',
+              }}
+            />
+            {searchQuery.trim() && (
+              <div style={{ marginTop: 12, maxHeight: 320, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {filteredNotes.length === 0 ? (
+                  <p style={{ fontSize: '0.8rem', color: '#252422', opacity: 0.5 }}>nothing found</p>
+                ) : filteredNotes.map(n => (
+                  <button
+                    key={n.id}
+                    onClick={() => {
+                      panTo(n.x + (n.width ?? 208) / 2, n.y + (n.height ?? 120) / 2);
+                      setSearchOpen(false);
+                      setSearchQuery('');
+                    }}
+                    style={{
+                      textAlign: 'left',
+                      background: n.color ?? '#ede0d4',
+                      border: '2px solid #252422',
+                      borderRadius: 3,
+                      padding: '6px 10px',
+                      fontSize: '0.8rem',
+                      color: n.color === '#252422' ? '#ede0d4' : '#252422',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {n.content || '(empty note)'}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <button
         className="fixed bottom-4 right-4"
         style={{
@@ -429,7 +521,7 @@ const Canvas = () => {
         {isCutting
           ? 'slide through strings to cut them'
           : activeTool === 'pointer'
-          ? 'double-click to add a note · hold c to cut'
+          ? 'double-click to add a note · hold c to cut · ⌘f search · a s p e switch tools'
           : activeTool === 'string'
           ? 'click to pin · click again to connect · esc to cancel'
           : activeTool === 'pencil'
