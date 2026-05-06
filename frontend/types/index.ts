@@ -1,4 +1,4 @@
-export type Tool = 'pointer' | 'string' | 'pencil' | 'eraser' | 'eraser-brush';
+export type Tool = 'pointer' | 'string' | 'pencil' | 'eraser' | 'eraser-brush' | 'sticker';
 
 export type DrawingPath = {
   id: string;
@@ -31,6 +31,15 @@ export type StringConnection = {
   noteId1?: string;
   noteId2?: string;
   style?: string;
+};
+
+export type Sticker = {
+  id: string;
+  x: number;
+  y: number;
+  rotation: number;
+  scale: number;
+  emoji: string;
 };
 
 export type StatusMessage = {

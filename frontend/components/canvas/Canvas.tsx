@@ -1,14 +1,16 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Note, StringConnection, Tool } from '@types';
+import { Note, Sticker, StringConnection, Tool } from '@types';
 import CanvasNote from './CanvasNote';
 import CanvasString, { stringPath } from './CanvasString';
+import CanvasSticker from './CanvasSticker';
 import TitleCard from './TitleCard';
 import Toolbar from './Toolbar';
 import Minimap from './Minimap';
 import NoteService from '@services/NoteService';
 import StringService from '@services/StringService';
+import StickerService from '@services/StickerService';
 import { useAuth } from '@context/AuthContext';
 
 type Transform = { x: number; y: number; scale: number };
@@ -54,6 +56,7 @@ const Canvas = () => {
   const [pencilColor, setPencilColor] = useState('#252422');
   const [notes, setNotes] = useState<Note[]>([]);
   const [strings, setStrings] = useState<StringConnection[]>([]);
+  const [stickers, setStickers] = useState<Sticker[]>([]);
   const [pendingPin, setPendingPin] = useState<{ x: number; y: number; noteId?: string } | null>(null);
   const [cursorWorld, setCursorWorld] = useState<{ x: number; y: number } | null>(null);
   const [isCutting, setIsCutting] = useState(false);
@@ -74,9 +77,10 @@ const Canvas = () => {
   useEffect(() => { transformRef.current = transform; }, [transform]);
 
   useEffect(() => {
-    if (!user) { setNotes([]); setStrings([]); return; }
+    if (!user) { setNotes([]); setStrings([]); setStickers([]); return; }
     NoteService.getAll().then(setNotes).catch(() => {});
     StringService.getAll().then(setStrings).catch(() => {});
+    StickerService.getAll().then(setStickers).catch(() => {});
   }, [user?.id]);
 
   useEffect(() => {
@@ -193,6 +197,22 @@ const Canvas = () => {
 
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (isCutting) return;
+
+    if (activeTool === 'sticker') {
+      if ((e.target as HTMLElement).closest('[data-note]')) return;
+      const world = toWorld(e.clientX, e.clientY);
+      if (!user) return;
+      const draft = { x: world.x, y: world.y, rotation: randomRotation() * 2, scale: 1, emoji: '🐢' };
+      const tempId = crypto.randomUUID();
+      setStickers(prev => [...prev, { id: tempId, ...draft }]);
+      StickerService.create(draft).then(saved => {
+        setStickers(prev => prev.map(s => s.id === tempId ? saved : s));
+      }).catch(() => {
+        setStickers(prev => prev.filter(s => s.id !== tempId));
+      });
+      return;
+    }
+
     if (activeTool !== 'string') return;
     const world = toWorld(e.clientX, e.clientY);
 
@@ -264,6 +284,16 @@ const Canvas = () => {
     setStrings(prev => prev.map(s => s.id === id ? { ...s, ...changes } : s));
   };
 
+  const updateSticker = (id: string, changes: Partial<Sticker>) => {
+    setStickers(prev => prev.map(s => s.id === id ? { ...s, ...changes } : s));
+    StickerService.update(id, changes).catch(() => {});
+  };
+
+  const deleteSticker = (id: string) => {
+    setStickers(prev => prev.filter(s => s.id !== id));
+    StickerService.remove(id).catch(() => {});
+  };
+
   const duplicateNote = (note: Note) => {
     if (!user) return;
     const draft = {
@@ -325,11 +355,21 @@ const Canvas = () => {
     ? notes.filter(n => n.content?.toLowerCase().includes(searchQuery.toLowerCase()))
     : [];
 
+  const canvasCursor = isCutting
+    ? 'crosshair'
+    : activeTool === 'pencil'
+    ? 'crosshair'
+    : activeTool === 'sticker'
+    ? 'cell'
+    : activeTool === 'eraser' || activeTool === 'eraser-brush'
+    ? 'cell'
+    : 'default';
+
   return (
     <div
       ref={containerRef}
       className="fixed inset-0 overflow-hidden select-none"
-      style={{ cursor: isCutting ? 'crosshair' : activeTool === 'pencil' ? 'crosshair' : activeTool === 'eraser' || activeTool === 'eraser-brush' ? 'cell' : 'default' }}
+      style={{ cursor: canvasCursor }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
@@ -351,6 +391,15 @@ const Canvas = () => {
         style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`, zIndex: 20 }}
       >
         <TitleCard scale={transform.scale} />
+        {stickers.map(sticker => (
+          <CanvasSticker
+            key={sticker.id}
+            sticker={sticker}
+            scale={transform.scale}
+            onUpdate={updateSticker}
+            onDelete={deleteSticker}
+          />
+        ))}
         {notes.map(note => (
           <CanvasNote
             key={note.id}
@@ -526,6 +575,8 @@ const Canvas = () => {
           ? 'click to pin · click again to connect · esc to cancel'
           : activeTool === 'pencil'
           ? 'draw inside notes'
+          : activeTool === 'sticker'
+          ? 'click canvas to stamp · pick emoji below'
           : activeTool === 'eraser'
           ? 'click a stroke to remove it entirely'
           : 'drag to erase parts of strokes'}

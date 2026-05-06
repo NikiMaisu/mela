@@ -44,6 +44,7 @@ public class SecurityConfig {
                         .requestMatchers("/admin/**").permitAll()
                         .requestMatchers("/notes/**").authenticated()
                         .requestMatchers("/strings/**").authenticated()
+                        .requestMatchers("/stickers/**").authenticated()
                         .anyRequest().permitAll()
                 )
                 .exceptionHandling(ex -> ex

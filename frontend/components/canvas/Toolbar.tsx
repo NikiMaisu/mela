@@ -11,6 +11,7 @@ const tools: { id: Tool; label: string }[] = [
   { id: 'pointer', label: 'pointer' },
   { id: 'string', label: 'string' },
   { id: 'pencil', label: 'pencil' },
+  { id: 'sticker', label: 'sticker' },
   { id: 'eraser', label: 'stroke eraser' },
   { id: 'eraser-brush', label: 'brush eraser' },
 ];
