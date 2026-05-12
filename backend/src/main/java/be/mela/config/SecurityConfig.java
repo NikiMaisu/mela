@@ -45,6 +45,7 @@ public class SecurityConfig {
                         .requestMatchers("/notes/**").authenticated()
                         .requestMatchers("/strings/**").authenticated()
                         .requestMatchers("/stickers/**").authenticated()
+                        .requestMatchers("/canvas-strokes/**").authenticated()
                         .anyRequest().permitAll()
                 )
                 .exceptionHandling(ex -> ex
@@ -65,7 +66,7 @@ public class SecurityConfig {
                 .toList());
 
         config.setAllowedOrigins(origins);
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Content-Type", "Authorization", "X-Requested-With"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);

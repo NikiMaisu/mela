@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Note, Sticker, StringConnection, Tool } from '@types';
+import { CanvasStroke, Note, Sticker, StringConnection, Tool } from '@types';
 import CanvasNote from './CanvasNote';
 import CanvasString, { stringPath } from './CanvasString';
 import CanvasSticker from './CanvasSticker';
@@ -11,11 +11,26 @@ import Minimap from './Minimap';
 import NoteService from '@services/NoteService';
 import StringService from '@services/StringService';
 import StickerService from '@services/StickerService';
+import CanvasStrokeService from '@services/CanvasStrokeService';
 import { useAuth } from '@context/AuthContext';
 
 type Transform = { x: number; y: number; scale: number };
 
 const NOTE_COLORS = ['#ede0d4', '#f9e4b7', '#d4edd4', '#d4e4f0', '#f0d4e4', '#e8d4f0', '#ffd6a5', '#252422'];
+
+const jitter = (v: number) => v + (Math.random() - 0.5) * 2;
+
+const pointsToPath = (pts: { x: number; y: number }[]): string => {
+  if (pts.length < 2) return '';
+  let d = `M ${pts[0].x} ${pts[0].y}`;
+  for (let i = 1; i < pts.length - 1; i++) {
+    const mx = (pts[i].x + pts[i + 1].x) / 2;
+    const my = (pts[i].y + pts[i + 1].y) / 2;
+    d += ` Q ${pts[i].x} ${pts[i].y} ${mx} ${my}`;
+  }
+  d += ` L ${pts[pts.length - 1].x} ${pts[pts.length - 1].y}`;
+  return d;
+};
 
 const segmentsIntersect = (
   ax: number, ay: number, bx: number, by: number,
@@ -49,6 +64,37 @@ const bezierIntersectsCut = (
 
 const randomRotation = () => (Math.random() - 0.5) * 5.5;
 
+const CANVAS_ERASER_RADIUS = 16;
+
+const strokeNearPoint = (stroke: CanvasStroke, wx: number, wy: number, r: number): boolean => {
+  const pts = stroke.points;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const dx = pts[i + 1].x - pts[i].x, dy = pts[i + 1].y - pts[i].y;
+    const lenSq = dx * dx + dy * dy;
+    if (lenSq === 0) continue;
+    const t = Math.max(0, Math.min(1, ((wx - pts[i].x) * dx + (wy - pts[i].y) * dy) / lenSq));
+    if (Math.hypot(wx - (pts[i].x + t * dx), wy - (pts[i].y + t * dy)) < r) return true;
+  }
+  return false;
+};
+
+const eraseCanvasBrush = (strokes: CanvasStroke[], wx: number, wy: number, r: number): CanvasStroke[] => {
+  const result: CanvasStroke[] = [];
+  for (const stroke of strokes) {
+    let current: { x: number; y: number }[] = [];
+    for (const pt of stroke.points) {
+      if (Math.hypot(pt.x - wx, pt.y - wy) > r) {
+        current.push(pt);
+      } else {
+        if (current.length >= 2) result.push({ ...stroke, id: crypto.randomUUID(), points: current });
+        current = [];
+      }
+    }
+    if (current.length >= 2) result.push({ ...stroke, id: crypto.randomUUID(), points: current });
+  }
+  return result;
+};
+
 const Canvas = () => {
   const { user } = useAuth();
   const [transform, setTransform] = useState<Transform>({ x: 0, y: 0, scale: 1 });
@@ -57,6 +103,8 @@ const Canvas = () => {
   const [notes, setNotes] = useState<Note[]>([]);
   const [strings, setStrings] = useState<StringConnection[]>([]);
   const [stickers, setStickers] = useState<Sticker[]>([]);
+  const [bgStrokes, setBgStrokes] = useState<CanvasStroke[]>([]);
+  const [liveStroke, setLiveStroke] = useState<CanvasStroke | null>(null);
   const [pendingPin, setPendingPin] = useState<{ x: number; y: number; noteId?: string } | null>(null);
   const [cursorWorld, setCursorWorld] = useState<{ x: number; y: number } | null>(null);
   const [isCutting, setIsCutting] = useState(false);
@@ -72,15 +120,21 @@ const Canvas = () => {
   const pendingPinRef = useRef<{ x: number; y: number; noteId?: string } | null>(null);
   const transformRef = useRef(transform);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const liveStrokeRef = useRef<{ id: string; points: { x: number; y: number }[]; color: string; strokeWidth: number } | null>(null);
+  const isDrawingBg = useRef(false);
+  const isErasingBg = useRef(false);
+  const erasedBgIds = useRef<Set<string>>(new Set());
+  const preEraseBgIds = useRef<Set<string>>(new Set());
 
   useEffect(() => { notesRef.current = notes; }, [notes]);
   useEffect(() => { transformRef.current = transform; }, [transform]);
 
   useEffect(() => {
-    if (!user) { setNotes([]); setStrings([]); setStickers([]); return; }
+    if (!user) { setNotes([]); setStrings([]); setStickers([]); setBgStrokes([]); return; }
     NoteService.getAll().then(setNotes).catch(() => {});
     StringService.getAll().then(setStrings).catch(() => {});
     StickerService.getAll().then(setStickers).catch(() => {});
+    CanvasStrokeService.getAll().then(setBgStrokes).catch(() => {});
   }, [user?.id]);
 
   useEffect(() => {
@@ -149,10 +203,47 @@ const Canvas = () => {
     };
   };
 
+
+
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
-    if ((e.target as HTMLElement).closest('[data-note]')) return;
+    const onNote = !!(e.target as HTMLElement).closest('[data-note]');
     if (isCutting) return;
+
+    if (activeTool === 'pencil' && !onNote) {
+      isDrawingBg.current = true;
+      const world = toWorld(e.clientX, e.clientY);
+      const id = crypto.randomUUID();
+      const stroke = { id, points: [{ x: jitter(world.x), y: jitter(world.y) }], color: pencilColor, strokeWidth: 4 };
+      liveStrokeRef.current = stroke;
+      setLiveStroke({ ...stroke });
+      e.currentTarget.setPointerCapture(e.pointerId);
+      return;
+    }
+
+    if ((activeTool === 'eraser' || activeTool === 'eraser-brush') && !onNote) {
+      isErasingBg.current = true;
+      preEraseBgIds.current = new Set(bgStrokes.map(s => s.id));
+      erasedBgIds.current = new Set();
+      const world = toWorld(e.clientX, e.clientY);
+      const r = CANVAS_ERASER_RADIUS / transformRef.current.scale;
+      if (activeTool === 'eraser') {
+        setBgStrokes(prev => {
+          prev.filter(s => strokeNearPoint(s, world.x, world.y, r))
+            .forEach(s => { erasedBgIds.current.add(s.id); CanvasStrokeService.remove(s.id).catch(() => {}); });
+          return prev.filter(s => !strokeNearPoint(s, world.x, world.y, r));
+        });
+      } else {
+        setBgStrokes(prev => {
+          prev.filter(s => strokeNearPoint(s, world.x, world.y, r)).forEach(s => erasedBgIds.current.add(s.id));
+          return eraseCanvasBrush(prev, world.x, world.y, r);
+        });
+      }
+      e.currentTarget.setPointerCapture(e.pointerId);
+      return;
+    }
+
+    if (onNote) return;
     if (activeTool !== 'pointer' && activeTool !== 'string') return;
     isPanning.current = true;
     lastPointer.current = { x: e.clientX, y: e.clientY };
@@ -162,6 +253,30 @@ const Canvas = () => {
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const world = toWorld(e.clientX, e.clientY);
     setCursorWorld(world);
+
+    if (isDrawingBg.current && liveStrokeRef.current) {
+      const pt = { x: jitter(world.x), y: jitter(world.y) };
+      liveStrokeRef.current = { ...liveStrokeRef.current, points: [...liveStrokeRef.current.points, pt] };
+      setLiveStroke({ ...liveStrokeRef.current });
+      return;
+    }
+
+    if (isErasingBg.current) {
+      const r = CANVAS_ERASER_RADIUS / transformRef.current.scale;
+      if (activeTool === 'eraser') {
+        setBgStrokes(prev => {
+          prev.filter(s => strokeNearPoint(s, world.x, world.y, r) && !erasedBgIds.current.has(s.id))
+            .forEach(s => { erasedBgIds.current.add(s.id); CanvasStrokeService.remove(s.id).catch(() => {}); });
+          return prev.filter(s => !strokeNearPoint(s, world.x, world.y, r));
+        });
+      } else {
+        setBgStrokes(prev => {
+          prev.filter(s => strokeNearPoint(s, world.x, world.y, r)).forEach(s => erasedBgIds.current.add(s.id));
+          return eraseCanvasBrush(prev, world.x, world.y, r);
+        });
+      }
+      return;
+    }
 
     if (isCutting) {
       setCutTrail(prev => [...prev.slice(-40), { x: e.clientX, y: e.clientY }]);
@@ -191,7 +306,41 @@ const Canvas = () => {
     setTransform(t => ({ ...t, x: t.x + dx, y: t.y + dy }));
   };
 
-  const handlePointerUp = () => {
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isDrawingBg.current && liveStrokeRef.current) {
+      isDrawingBg.current = false;
+      const stroke = liveStrokeRef.current;
+      liveStrokeRef.current = null;
+      setLiveStroke(null);
+      if (stroke.points.length >= 2 && user) {
+        const tempId = stroke.id;
+        setBgStrokes(prev => [...prev, stroke]);
+        CanvasStrokeService.create({ points: stroke.points, color: stroke.color, strokeWidth: stroke.strokeWidth }).then(saved => {
+          setBgStrokes(prev => prev.map(s => s.id === tempId ? saved : s));
+        }).catch(() => {
+          setBgStrokes(prev => prev.filter(s => s.id !== tempId));
+        });
+      }
+      return;
+    }
+    if (isErasingBg.current) {
+      isErasingBg.current = false;
+      if (activeTool === 'eraser-brush') {
+        erasedBgIds.current.forEach(id => CanvasStrokeService.remove(id).catch(() => {}));
+        setBgStrokes(current => {
+          current
+            .filter(s => !preEraseBgIds.current.has(s.id))
+            .forEach(s => {
+              CanvasStrokeService.create({ points: s.points, color: s.color, strokeWidth: s.strokeWidth })
+                .then(saved => setBgStrokes(prev => prev.map(p => p.id === s.id ? saved : p)))
+                .catch(() => setBgStrokes(prev => prev.filter(p => p.id !== s.id)));
+            });
+          return current;
+        });
+      }
+      return;
+    }
+
     isPanning.current = false;
   };
 
@@ -386,6 +535,37 @@ const Canvas = () => {
         }}
       />
 
+      <svg
+        className="fixed inset-0 w-full h-full pointer-events-none"
+        style={{ zIndex: 8 }}
+      >
+        <g transform={`translate(${transform.x}, ${transform.y}) scale(${transform.scale})`}>
+          {bgStrokes.map(stroke => (
+            <path
+              key={stroke.id}
+              d={pointsToPath(stroke.points)}
+              stroke={stroke.color}
+              strokeWidth={stroke.strokeWidth / transform.scale}
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity="0.75"
+            />
+          ))}
+          {liveStroke && (
+            <path
+              d={pointsToPath(liveStroke.points)}
+              stroke={liveStroke.color}
+              strokeWidth={liveStroke.strokeWidth / transform.scale}
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity="0.75"
+            />
+          )}
+        </g>
+      </svg>
+
       <div
         className="absolute top-0 left-0 origin-top-left"
         style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`, zIndex: 20 }}
@@ -449,19 +629,14 @@ const Canvas = () => {
           )}
           {preview && pendingPin && cursorWorld && (
             <g opacity={0.55}>
-              <path
-                d={preview.d}
-                stroke="#A81C07"
-                strokeWidth="14"
-                fill="none"
-                strokeLinecap="round"
-                strokeDasharray="8 6"
-              />
+              <path d={preview.d} stroke="#252422" strokeWidth="20" fill="none" strokeLinecap="round" strokeDasharray="10 7" />
+              <path d={preview.d} stroke="#A81C07" strokeWidth="10" fill="none" strokeLinecap="round" strokeDasharray="10 7" />
               <circle cx={cursorWorld.x} cy={cursorWorld.y} r={5} fill="#A81C07" />
             </g>
           )}
         </g>
       </svg>
+
 
       {searchOpen && (
         <div
@@ -564,7 +739,12 @@ const Canvas = () => {
         onPanTo={panTo}
       />
 
-      <Toolbar activeTool={activeTool} onToolChange={tool => { setActiveTool(tool); if (tool !== 'string') { pendingPinRef.current = null; setPendingPin(null); } }} />
+      <Toolbar
+        activeTool={activeTool}
+        pencilColor={pencilColor}
+        onToolChange={tool => { setActiveTool(tool); if (tool !== 'string') { pendingPinRef.current = null; setPendingPin(null); } }}
+        onPencilColorChange={setPencilColor}
+      />
 
       <p className="fixed bottom-4 left-1/2 -translate-x-1/2 text-xs text-ink/50 pointer-events-none" style={{ zIndex: 50 }}>
         {isCutting
@@ -574,7 +754,7 @@ const Canvas = () => {
           : activeTool === 'string'
           ? 'click to pin · click again to connect · esc to cancel'
           : activeTool === 'pencil'
-          ? 'draw inside notes'
+          ? 'draw on canvas or inside notes · pick ink color below'
           : activeTool === 'sticker'
           ? 'click canvas to stamp · pick emoji below'
           : activeTool === 'eraser'

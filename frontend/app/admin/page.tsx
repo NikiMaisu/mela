@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, KeyboardEvent } from 'react';
-import AdminService, { AdminUser, UserBoard, AdminDrawingPath } from '../../services/AdminService';
+import AdminService, { AdminUser, UserBoard, AdminDrawingPath, AdminStroke } from '../../services/AdminService';
 
 type View = 'checking' | 'login' | 'dashboard';
 
@@ -17,19 +17,41 @@ const drawingToPath = (pts: { x: number; y: number }[], ox: number, oy: number, 
   return d;
 };
 
+const strokesToPath = (pts: { x: number; y: number }[], tx: (x: number) => number, ty: (y: number) => number): string => {
+  if (pts.length < 2) return '';
+  let d = `M ${tx(pts[0].x)} ${ty(pts[0].y)}`;
+  for (let i = 1; i < pts.length - 1; i++) {
+    const mx = (pts[i].x + pts[i + 1].x) / 2;
+    const my = (pts[i].y + pts[i + 1].y) / 2;
+    d += ` Q ${tx(pts[i].x)} ${ty(pts[i].y)} ${tx(mx)} ${ty(my)}`;
+  }
+  d += ` L ${tx(pts[pts.length - 1].x)} ${ty(pts[pts.length - 1].y)}`;
+  return d;
+};
+
 const MiniCanvas = ({ board }: { board: UserBoard }) => {
   const W = 520, H = 280, PAD = 20;
-  if (board.notes.length === 0 && board.strings.length === 0) return null;
+  const hasContent = board.notes.length > 0 || board.strings.length > 0 || board.strokes.length > 0;
+  if (!hasContent) return null;
 
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const n of board.notes) {
+    const sz = n.shape === 'circle' ? Math.max(n.width, n.height) : n.width;
     minX = Math.min(minX, n.x); minY = Math.min(minY, n.y);
-    maxX = Math.max(maxX, n.x + n.width); maxY = Math.max(maxY, n.y + n.height);
+    maxX = Math.max(maxX, n.x + sz); maxY = Math.max(maxY, n.y + (n.shape === 'circle' ? sz : n.height));
   }
   for (const s of board.strings) {
     minX = Math.min(minX, s.x1, s.x2); minY = Math.min(minY, s.y1, s.y2);
     maxX = Math.max(maxX, s.x1, s.x2); maxY = Math.max(maxY, s.y1, s.y2);
   }
+  for (const s of board.strokes) {
+    for (const p of s.points) {
+      minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
+      maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y);
+    }
+  }
+  if (!isFinite(minX)) { minX = 0; minY = 0; maxX = 100; maxY = 100; }
+
   const scale = Math.min((W - PAD * 2) / (maxX - minX || 1), (H - PAD * 2) / (maxY - minY || 1));
   const tx = (x: number) => (x - minX) * scale + PAD;
   const ty = (y: number) => (y - minY) * scale + PAD;
@@ -40,12 +62,33 @@ const MiniCanvas = ({ board }: { board: UserBoard }) => {
       style={{ display: 'block', border: '2px solid #252422', borderRadius: '2px', backgroundColor: '#f7efe7', marginTop: '14px', maxWidth: '100%' }}
     >
       <defs>
-        {board.notes.map(n => (
-          <clipPath key={`clip-${n.id}`} id={`clip-${n.id}`}>
-            <rect x={tx(n.x)} y={ty(n.y)} width={n.width * scale} height={n.height * scale} />
-          </clipPath>
-        ))}
+        {board.notes.map(n => {
+          const sz = n.shape === 'circle' ? Math.max(n.width, n.height) : n.width;
+          const nh = n.shape === 'circle' ? sz : n.height;
+          const nx = tx(n.x), ny = ty(n.y), nw = sz * scale, nhS = nh * scale;
+          const cx = nx + nw / 2, cy = ny + nhS / 2, rx = nw / 2, ry = nhS / 2;
+          return (
+            <clipPath key={`clip-${n.id}`} id={`clip-${n.id}`}>
+              {n.shape === 'circle'
+                ? <ellipse cx={cx} cy={cy} rx={rx} ry={ry} />
+                : <rect x={nx} y={ny} width={nw} height={nhS} />}
+            </clipPath>
+          );
+        })}
       </defs>
+
+      {board.strokes.map((s: AdminStroke) => (
+        <path
+          key={s.id}
+          d={strokesToPath(s.points, tx, ty)}
+          stroke={s.color}
+          strokeWidth={Math.max(0.5, s.strokeWidth * scale)}
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity={0.75}
+        />
+      ))}
 
       {board.strings.map(s => {
         const sx1 = tx(s.x1), sy1 = ty(s.y1), sx2 = tx(s.x2), sy2 = ty(s.y2);
@@ -59,17 +102,23 @@ const MiniCanvas = ({ board }: { board: UserBoard }) => {
       })}
 
       {board.notes.map(n => {
-        const nx = tx(n.x), ny = ty(n.y);
-        const nw = n.width * scale, nh = n.height * scale;
+        const sz = n.shape === 'circle' ? Math.max(n.width, n.height) : n.width;
+        const nh = n.shape === 'circle' ? sz : n.height;
+        const nx = tx(n.x), ny = ty(n.y), nw = sz * scale, nhS = nh * scale;
+        const fill = n.color ?? '#ede0d4';
+        const textColor = fill === '#252422' ? '#ede0d4' : '#252422';
+        const cx = nx + nw / 2, cy = ny + nhS / 2, rx = nw / 2, ry = nhS / 2;
         return (
           <g key={n.id}>
-            <rect x={nx} y={ny} width={nw} height={nh} fill="#ede0d4" stroke="#252422" strokeWidth={1.5} rx={1} />
+            {n.shape === 'circle'
+              ? <ellipse cx={cx} cy={cy} rx={rx} ry={ry} fill={fill} stroke="#252422" strokeWidth={1.5} />
+              : <rect x={nx} y={ny} width={nw} height={nhS} fill={fill} stroke="#252422" strokeWidth={1.5} rx={1} />}
             {n.drawings.map((path: AdminDrawingPath) => (
               <path
                 key={path.id}
                 d={drawingToPath(path.points, nx, ny, scale)}
-                stroke="#252422"
-                strokeWidth={Math.max(1, 4 * scale)}
+                stroke={textColor}
+                strokeWidth={Math.max(0.5, 4 * scale)}
                 fill="none"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -77,8 +126,10 @@ const MiniCanvas = ({ board }: { board: UserBoard }) => {
                 clipPath={`url(#clip-${n.id})`}
               />
             ))}
-            {!n.drawings.length && (
-              <text x={nx + 4} y={ny + 11} fontSize={7} fill="#252422" style={{ userSelect: 'none' }}>
+            {!n.drawings.length && n.content && (
+              <text x={n.shape === 'circle' ? cx : nx + 4} y={n.shape === 'circle' ? cy + 3 : ny + 11}
+                fontSize={7} fill={textColor} textAnchor={n.shape === 'circle' ? 'middle' : 'start'}
+                style={{ userSelect: 'none' }}>
                 {n.content.slice(0, 24)}
               </text>
             )}

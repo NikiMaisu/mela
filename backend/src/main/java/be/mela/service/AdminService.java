@@ -21,16 +21,19 @@ public class AdminService {
     private final NoteRepository noteRepository;
     private final StringRepository stringRepository;
     private final NoteService noteService;
+    private final CanvasStrokeService canvasStrokeService;
     private final PasswordEncoder passwordEncoder;
 
     public AdminService(AdminRepository adminRepository, UserRepository userRepository,
                         NoteRepository noteRepository, StringRepository stringRepository,
-                        NoteService noteService, PasswordEncoder passwordEncoder) {
+                        NoteService noteService, CanvasStrokeService canvasStrokeService,
+                        PasswordEncoder passwordEncoder) {
         this.adminRepository = adminRepository;
         this.userRepository = userRepository;
         this.noteRepository = noteRepository;
         this.stringRepository = stringRepository;
         this.noteService = noteService;
+        this.canvasStrokeService = canvasStrokeService;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -62,14 +65,16 @@ public class AdminService {
     public BoardDto getUserBoard(Long userId) {
         var notes = noteService.getAllNotes(userId);
         var strings = stringRepository.findAllByUserId(userId).stream()
-                .map(s -> new StringDto(s.getId(), s.getX1(), s.getY1(), s.getX2(), s.getY2(), s.getColor(), s.getLabel(), s.getNoteId1(), s.getNoteId2()))
+                .map(s -> new StringDto(s.getId(), s.getX1(), s.getY1(), s.getX2(), s.getY2(), s.getColor(), s.getLabel(), s.getNoteId1(), s.getNoteId2(), s.getStyle()))
                 .toList();
-        return new BoardDto(notes, strings);
+        var strokes = canvasStrokeService.getAll(userId);
+        return new BoardDto(notes, strings, strokes);
     }
 
     public void deleteUser(Long userId) {
         noteRepository.deleteAllByUserId(userId);
         stringRepository.deleteAllByUserId(userId);
+        canvasStrokeService.deleteAll(userId);
         userRepository.deleteById(userId);
     }
 }

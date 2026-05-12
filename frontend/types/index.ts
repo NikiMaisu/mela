@@ -42,6 +42,13 @@ export type Sticker = {
   emoji: string;
 };
 
+export type CanvasStroke = {
+  id: string;
+  points: { x: number; y: number }[];
+  color: string;
+  strokeWidth: number;
+};
+
 export type StatusMessage = {
   message: string;
   type: 'error' | 'success';

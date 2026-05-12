@@ -8,10 +8,12 @@ export type AdminUser = {
 };
 
 export type AdminDrawingPath = { id: string; points: { x: number; y: number }[] };
+export type AdminStroke = { id: string; points: { x: number; y: number }[]; color: string; strokeWidth: number };
 
 export type UserBoard = {
-  notes: Array<{ id: string; content: string; x: number; y: number; width: number; height: number; drawings: AdminDrawingPath[] }>;
+  notes: Array<{ id: string; content: string; x: number; y: number; width: number; height: number; color: string; shape: string; drawings: AdminDrawingPath[] }>;
   strings: Array<{ id: string; x1: number; y1: number; x2: number; y2: number }>;
+  strokes: AdminStroke[];
 };
 
 const login = async (username: string, password: string): Promise<void> => {
@@ -50,13 +52,15 @@ const getUserBoard = async (id: string): Promise<UserBoard> => {
   if (!res.ok) throw new Error('failed to fetch board');
   const data = await res.json();
   return {
-    notes: (data.notes ?? []).map((n: { id: string | number; content?: string; x: number; y: number; width?: number; height?: number; drawings?: AdminDrawingPath[] }) => ({
+    notes: (data.notes ?? []).map((n: { id: string | number; content?: string; x: number; y: number; width?: number; height?: number; color?: string; shape?: string; drawings?: AdminDrawingPath[] }) => ({
       id: String(n.id),
       content: n.content ?? '',
       x: n.x,
       y: n.y,
       width: n.width ?? 208,
       height: n.height ?? 120,
+      color: n.color ?? '#ede0d4',
+      shape: n.shape ?? 'rectangle',
       drawings: Array.isArray(n.drawings) ? n.drawings : [],
     })),
     strings: (data.strings ?? []).map((s: { id: string | number; x1: number; y1: number; x2: number; y2: number }) => ({
@@ -65,6 +69,12 @@ const getUserBoard = async (id: string): Promise<UserBoard> => {
       y1: s.y1,
       x2: s.x2,
       y2: s.y2,
+    })),
+    strokes: (data.strokes ?? []).map((s: { id: string | number; points: { x: number; y: number }[]; color?: string; strokeWidth?: number }) => ({
+      id: String(s.id),
+      points: Array.isArray(s.points) ? s.points : [],
+      color: s.color ?? '#252422',
+      strokeWidth: s.strokeWidth ?? 4,
     })),
   };
 };
