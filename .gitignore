@@ -4,12 +4,18 @@ backend/.idea/
 backend/*.iml
 backend/*.class
 backend/*.log
+backend/*.mv.db
+backend/*.trace.db
 
 # frontend
 frontend/node_modules/
 frontend/.next/
 frontend/.env.local
+frontend/tsconfig.tsbuildinfo
 
 # ide
 .idea/
 *.iml
+
+# os
+.DS_Store
