@@ -207,7 +207,7 @@ const AdminPage = () => {
   const handleSelectUser = (user: AdminUser) => {
     setSelectedUser(user);
     setBoard(null);
-    AdminService.getUserBoard(user.id).then(setBoard).catch(() => setBoard({ notes: [], strings: [] }));
+    AdminService.getUserBoard(user.id).then(setBoard).catch(() => setBoard({ notes: [], strings: [], strokes: [] }));
   };
 
   const handleDeleteUser = async () => {
