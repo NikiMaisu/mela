@@ -6,6 +6,7 @@ import CanvasNote from './CanvasNote';
 import CanvasString, { stringPath } from './CanvasString';
 import CanvasSticker from './CanvasSticker';
 import TitleCard from './TitleCard';
+import IntroDemo from './IntroDemo';
 import Toolbar from './Toolbar';
 import Minimap from './Minimap';
 import NoteService from '@services/NoteService';
@@ -97,12 +98,13 @@ const eraseCanvasBrush = (strokes: CanvasStroke[], wx: number, wy: number, r: nu
 };
 
 const Canvas = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [transform, setTransform] = useState<Transform>({ x: 0, y: 0, scale: 1 });
   const [screenSize, setScreenSize] = useState({ width: 1920, height: 1080 });
   const [activeTool, setActiveTool] = useState<Tool>('pointer');
   const [pencilColor, setPencilColor] = useState('#252422');
   const [notes, setNotes] = useState<Note[]>([]);
+  const [notesLoaded, setNotesLoaded] = useState(false);
   const [strings, setStrings] = useState<StringConnection[]>([]);
   const [stickers, setStickers] = useState<Sticker[]>([]);
   const [bgStrokes, setBgStrokes] = useState<CanvasStroke[]>([]);
@@ -114,6 +116,7 @@ const Canvas = () => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const { uiScale, toggleUiScale } = useUIScale();
+  const [showIntro, setShowIntro] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const isPanning = useRef(false);
   const lastPointer = useRef({ x: 0, y: 0 });
@@ -148,11 +151,18 @@ const Canvas = () => {
 
   useEffect(() => {
     if (!user) { setNotes([]); setStrings([]); setStickers([]); setBgStrokes([]); return; }
-    NoteService.getAll().then(setNotes).catch(() => {});
+    NoteService.getAll().then(setNotes).catch(() => {}).finally(() => setNotesLoaded(true));
     StringService.getAll().then(setStrings).catch(() => {});
     StickerService.getAll().then(setStickers).catch(() => {});
     CanvasStrokeService.getAll().then(setBgStrokes).catch(() => {});
   }, [user?.id]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (window.localStorage.getItem('mela-intro-seen')) return;
+    if (user && (!notesLoaded || notes.length > 0)) return;
+    setShowIntro(true);
+  }, [authLoading, user, notesLoaded, notes.length]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -590,7 +600,7 @@ const Canvas = () => {
         className="absolute top-0 left-0 origin-top-left"
         style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`, zIndex: 20 }}
       >
-        <TitleCard scale={transform.scale} uiScale={uiScale} />
+        {!showIntro && <TitleCard scale={transform.scale} uiScale={uiScale} />}
         {stickers.map(sticker => (
           <CanvasSticker
             key={sticker.id}
@@ -807,6 +817,8 @@ const Canvas = () => {
           ? 'click a stroke to remove it entirely'
           : 'drag to erase parts of strokes'}
       </p>
+
+      {showIntro && <IntroDemo onFinish={() => setShowIntro(false)} />}
     </div>
   );
 };

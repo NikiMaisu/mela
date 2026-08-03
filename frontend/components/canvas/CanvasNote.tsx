@@ -266,14 +266,6 @@ const CanvasNote = ({ note, scale, activeTool, pencilColor, onUpdate, onDelete, 
     onUpdate(note.id, { color: c });
   };
 
-  const SHAPES = ['rectangle', 'circle', 'speech-bubble'];
-  const cycleShape = () => {
-    const next = SHAPES[(SHAPES.indexOf(shape) + 1) % SHAPES.length];
-    setShape(next);
-    onUpdate(note.id, { shape: next });
-  };
-  const shapeIcon = shape === 'circle' ? '◯' : shape === 'speech-bubble' ? '💬' : '▭';
-
   const isDrawingTool = activeTool === 'pencil' || activeTool === 'eraser' || activeTool === 'eraser-brush';
   const noteCursor = activeTool === 'pencil' ? 'crosshair' : isDrawingTool ? 'cell' : 'grab';
   const isDark = color === '#252422';
@@ -408,10 +400,6 @@ const CanvasNote = ({ note, scale, activeTool, pencilColor, onUpdate, onDelete, 
               {collapsed ? '▼' : '▲'}
             </button>
             <button style={{ fontSize: smallIconFont, color: dimColor('88'), cursor: 'pointer', background: 'none', border: 'none', lineHeight: 1, padding: 0, transition: iconTransition }}
-              onClick={e => { e.stopPropagation(); cycleShape(); }}>
-              {shapeIcon}
-            </button>
-            <button style={{ fontSize: smallIconFont, color: dimColor('88'), cursor: 'pointer', background: 'none', border: 'none', lineHeight: 1, padding: 0, transition: iconTransition }}
               onClick={e => { e.stopPropagation(); onDuplicate({ ...note, x: note.x + 24, y: note.y + 24, id: note.id }); }}>
               ⧉
             </button>
@@ -447,10 +435,6 @@ const CanvasNote = ({ note, scale, activeTool, pencilColor, onUpdate, onDelete, 
               </button>
             </div>
             <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-              <button style={{ fontSize: smallIconFont, color: dimColor('88'), cursor: 'pointer', background: 'none', border: 'none', lineHeight: 1, padding: 0, transition: iconTransition }}
-                onClick={e => { e.stopPropagation(); cycleShape(); }}>
-                {shapeIcon}
-              </button>
               <button style={{ fontSize: smallIconFont, color: dimColor('88'), cursor: 'pointer', background: 'none', border: 'none', lineHeight: 1, padding: 0, transition: iconTransition }}
                 onClick={e => { e.stopPropagation(); onDuplicate({ ...note, x: note.x + 24, y: note.y + 24, id: note.id }); }}>
                 ⧉

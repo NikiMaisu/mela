@@ -37,3 +37,33 @@
     @apply text-sm;
   }
 }
+
+@keyframes intro-cursor-pulse {
+  0% { transform: translate(-50%, -50%) scale(0.4); opacity: 0.9; }
+  100% { transform: translate(-50%, -50%) scale(2.2); opacity: 0; }
+}
+
+@keyframes intro-caret-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+@keyframes intro-note-wiggle {
+  0% { rotate: -1.8deg; translate: -1px 0; }
+  14% { rotate: 1.2deg; translate: 1px 1px; }
+  28% { rotate: -0.6deg; translate: 0 -1px; }
+  42% { rotate: 1.8deg; translate: 1px 0; }
+  57% { rotate: -1.2deg; translate: -1px 1px; }
+  71% { rotate: 0.8deg; translate: 0 0; }
+  85% { rotate: -1.6deg; translate: 1px -1px; }
+  100% { rotate: -1.8deg; translate: -1px 0; }
+}
+
+@keyframes intro-scribble-wiggle {
+  0% { rotate: -0.8deg; translate: 0 0; }
+  20% { rotate: 0.6deg; translate: 1px 0; }
+  40% { rotate: -0.4deg; translate: 0 1px; }
+  60% { rotate: 0.9deg; translate: -1px 0; }
+  80% { rotate: -0.6deg; translate: 0 -1px; }
+  100% { rotate: -0.8deg; translate: 0 0; }
+}
