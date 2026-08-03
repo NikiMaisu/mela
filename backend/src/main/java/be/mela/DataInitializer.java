@@ -2,6 +2,7 @@ package be.mela;
 
 import be.mela.model.Admin;
 import be.mela.repository.AdminRepository;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -13,6 +14,12 @@ public class DataInitializer implements ApplicationRunner {
     private final AdminRepository adminRepository;
     private final PasswordEncoder passwordEncoder;
 
+    @Value("${app.admin.username:Niki}")
+    private String adminUsername;
+
+    @Value("${app.admin.password:NikiNiki}")
+    private String adminPassword;
+
     public DataInitializer(AdminRepository adminRepository, PasswordEncoder passwordEncoder) {
         this.adminRepository = adminRepository;
         this.passwordEncoder = passwordEncoder;
@@ -22,8 +29,8 @@ public class DataInitializer implements ApplicationRunner {
     public void run(ApplicationArguments args) {
         if (adminRepository.count() == 0) {
             Admin admin = new Admin();
-            admin.setUsername("Niki");
-            admin.setPasswordHash(passwordEncoder.encode("NikiNiki"));
+            admin.setUsername(adminUsername);
+            admin.setPasswordHash(passwordEncoder.encode(adminPassword));
             adminRepository.save(admin);
         }
     }
