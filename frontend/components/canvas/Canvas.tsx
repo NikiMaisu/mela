@@ -13,6 +13,7 @@ import StringService from '@services/StringService';
 import StickerService from '@services/StickerService';
 import CanvasStrokeService from '@services/CanvasStrokeService';
 import { useAuth } from '@context/AuthContext';
+import { useUIScale } from '@context/UIScaleContext';
 
 type Transform = { x: number; y: number; scale: number };
 
@@ -98,6 +99,7 @@ const eraseCanvasBrush = (strokes: CanvasStroke[], wx: number, wy: number, r: nu
 const Canvas = () => {
   const { user } = useAuth();
   const [transform, setTransform] = useState<Transform>({ x: 0, y: 0, scale: 1 });
+  const [screenSize, setScreenSize] = useState({ width: 1920, height: 1080 });
   const [activeTool, setActiveTool] = useState<Tool>('pointer');
   const [pencilColor, setPencilColor] = useState('#252422');
   const [notes, setNotes] = useState<Note[]>([]);
@@ -111,6 +113,7 @@ const Canvas = () => {
   const [cutTrail, setCutTrail] = useState<{ x: number; y: number }[]>([]);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const { uiScale, toggleUiScale } = useUIScale();
   const containerRef = useRef<HTMLDivElement>(null);
   const isPanning = useRef(false);
   const lastPointer = useRef({ x: 0, y: 0 });
@@ -128,6 +131,20 @@ const Canvas = () => {
 
   useEffect(() => { notesRef.current = notes; }, [notes]);
   useEffect(() => { transformRef.current = transform; }, [transform]);
+
+  useEffect(() => {
+    const updateScreenSize = () => setScreenSize({ width: window.innerWidth, height: window.innerHeight });
+    updateScreenSize();
+    window.addEventListener('resize', updateScreenSize);
+    return () => window.removeEventListener('resize', updateScreenSize);
+  }, []);
+
+  useEffect(() => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setTransform({ x: rect.width / 2, y: rect.height / 2, scale: 1 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!user) { setNotes([]); setStrings([]); setStickers([]); setBgStrokes([]); return; }
@@ -382,8 +399,10 @@ const Canvas = () => {
       pendingPinRef.current = { ...world, noteId: pinNoteId };
       setPendingPin({ ...world, noteId: pinNoteId });
     } else {
+      const droppedOnSameSpot = Math.hypot(world.x - prev.x, world.y - prev.y) < 4 && pinNoteId === prev.noteId;
       pendingPinRef.current = null;
       setPendingPin(null);
+      if (droppedOnSameSpot) return;
       if (!user) return;
       const draft = { x1: prev.x, y1: prev.y, x2: world.x, y2: world.y, color: '#A81C07', noteId1: prev.noteId, noteId2: pinNoteId };
       const tempId = crypto.randomUUID();
@@ -496,6 +515,7 @@ const Canvas = () => {
   };
 
   const dotSpacing = 40 * transform.scale;
+  const dotRadius = Math.min(2.5, Math.max(0.4, 2 * transform.scale));
   const preview = pendingPin && cursorWorld
     ? stringPath(pendingPin.x, pendingPin.y, cursorWorld.x, cursorWorld.y)
     : null;
@@ -529,7 +549,7 @@ const Canvas = () => {
         className="absolute inset-0 pointer-events-none"
         style={{
           backgroundColor: '#ede0d4',
-          backgroundImage: 'radial-gradient(circle, #252422 2px, transparent 2px)',
+          backgroundImage: `radial-gradient(circle, #252422 ${dotRadius}px, transparent ${dotRadius}px)`,
           backgroundSize: `${dotSpacing}px ${dotSpacing}px`,
           backgroundPosition: `${transform.x % dotSpacing}px ${transform.y % dotSpacing}px`,
         }}
@@ -570,7 +590,7 @@ const Canvas = () => {
         className="absolute top-0 left-0 origin-top-left"
         style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`, zIndex: 20 }}
       >
-        <TitleCard scale={transform.scale} />
+        <TitleCard scale={transform.scale} uiScale={uiScale} />
         {stickers.map(sticker => (
           <CanvasSticker
             key={sticker.id}
@@ -717,15 +737,36 @@ const Canvas = () => {
           borderRadius: '2px 4px 3px 4px / 4px 2px 4px 3px',
           boxShadow: '4px 4px 0 0 #252422',
           filter: 'url(#hand-drawn)',
-          padding: '6px 14px',
-          fontSize: '0.75rem',
+          padding: uiScale === 'large' ? '16px 26px' : '8px 16px',
+          fontSize: uiScale === 'large' ? '1.35rem' : '0.85rem',
           color: '#252422',
           cursor: 'pointer',
           zIndex: 50,
         }}
-        onClick={resetCamera}
+        onPointerDown={e => e.stopPropagation()}
+        onClick={e => { e.stopPropagation(); resetCamera(); }}
       >
         back to start
+      </button>
+
+      <button
+        className="fixed top-4 left-4"
+        style={{
+          backgroundColor: '#ede0d4',
+          border: '3px solid #252422',
+          borderRadius: '2px 4px 3px 4px / 4px 2px 4px 3px',
+          boxShadow: '4px 4px 0 0 #252422',
+          filter: 'url(#hand-drawn)',
+          padding: uiScale === 'large' ? '14px 20px' : '7px 12px',
+          fontSize: uiScale === 'large' ? '1.2rem' : '0.8rem',
+          color: '#252422',
+          cursor: 'pointer',
+          zIndex: 50,
+        }}
+        onPointerDown={e => e.stopPropagation()}
+        onClick={e => { e.stopPropagation(); toggleUiScale(); }}
+      >
+        {uiScale === 'large' ? 'compact view' : 'comfy view'}
       </button>
 
       <Minimap
@@ -734,19 +775,24 @@ const Canvas = () => {
         viewX={transform.x}
         viewY={transform.y}
         viewScale={transform.scale}
-        screenW={containerRef.current?.clientWidth ?? window.innerWidth}
-        screenH={containerRef.current?.clientHeight ?? window.innerHeight}
+        screenW={containerRef.current?.clientWidth ?? screenSize.width}
+        screenH={containerRef.current?.clientHeight ?? screenSize.height}
+        uiScale={uiScale}
         onPanTo={panTo}
       />
 
       <Toolbar
         activeTool={activeTool}
         pencilColor={pencilColor}
+        uiScale={uiScale}
         onToolChange={tool => { setActiveTool(tool); if (tool !== 'string') { pendingPinRef.current = null; setPendingPin(null); } }}
         onPencilColorChange={setPencilColor}
       />
 
-      <p className="fixed bottom-4 left-1/2 -translate-x-1/2 text-xs text-ink/50 pointer-events-none" style={{ zIndex: 50 }}>
+      <p
+        className="fixed top-4 left-1/2 -translate-x-1/2 text-ink/50 pointer-events-none text-center"
+        style={{ zIndex: 45, fontSize: uiScale === 'large' ? '1.3rem' : '0.85rem', maxWidth: '55vw' }}
+      >
         {isCutting
           ? 'slide through strings to cut them'
           : activeTool === 'pointer'

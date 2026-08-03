@@ -117,6 +117,7 @@ const CanvasNote = ({ note, scale, activeTool, pencilColor, onUpdate, onDelete, 
   const [collapsed, setCollapsed] = useState(false);
   const [showPalette, setShowPalette] = useState(false);
   const [shape, setShape] = useState(note.shape ?? 'rectangle');
+  const [hovered, setHovered] = useState(false);
 
   const noteRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -288,6 +289,14 @@ const CanvasNote = ({ note, scale, activeTool, pencilColor, onUpdate, onDelete, 
   const fontSize = computeFontSize(note.content, availW, availH);
   const tapeAngle = ((hashId(note.id) % 7) - 3) * 0.6;
 
+  const swatchSize = hovered ? 28 : 14;
+  const smallIconFont = hovered ? '1.35rem' : '0.6rem';
+  const smallIconOpacity = hovered ? 1 : 0.45;
+  const deleteIconFont = hovered ? '1.6rem' : '0.75rem';
+  const headerGap = hovered ? 12 : 4;
+  const iconTransition = 'font-size 0.12s ease, opacity 0.12s ease, width 0.12s ease, height 0.12s ease, color 0.12s ease';
+  const dimColor = (alpha: string) => hovered ? inkColor : `${inkColor}${alpha}`;
+
   return (
     <div
       ref={noteRef}
@@ -302,6 +311,8 @@ const CanvasNote = ({ note, scale, activeTool, pencilColor, onUpdate, onDelete, 
         transform: `rotate(${rotation}deg)`,
         cursor: noteCursor,
       }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
       {!isCircle && (
         <div
@@ -371,12 +382,12 @@ const CanvasNote = ({ note, scale, activeTool, pencilColor, onUpdate, onDelete, 
       >
         {isCircle ? (
           <div
-            style={{ position: 'absolute', top: '18%', left: 0, right: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 6, zIndex: 5 }}
+            style={{ position: 'absolute', top: '18%', left: 0, right: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: headerGap, zIndex: 5, transition: 'gap 0.12s ease' }}
             onPointerDown={e => e.stopPropagation()}
           >
             <div style={{ position: 'relative', display: 'flex', gap: 4, alignItems: 'center' }}>
               <button
-                style={{ width: 14, height: 14, borderRadius: '50%', backgroundColor: color, border: `2px solid ${inkColor}`, cursor: 'pointer', flexShrink: 0, opacity: 0.7 }}
+                style={{ width: swatchSize, height: swatchSize, borderRadius: '50%', backgroundColor: color, border: `2px solid ${inkColor}`, cursor: 'pointer', flexShrink: 0, opacity: hovered ? 1 : 0.7, transition: iconTransition }}
                 onClick={e => { e.stopPropagation(); setShowPalette(v => !v); }}
               />
               {showPalette && (
@@ -392,29 +403,29 @@ const CanvasNote = ({ note, scale, activeTool, pencilColor, onUpdate, onDelete, 
                 </div>
               )}
             </div>
-            <button style={{ fontSize: '0.6rem', color: inkColor, opacity: 0.45, cursor: 'pointer', background: 'none', border: 'none', lineHeight: 1, padding: 0 }}
+            <button style={{ fontSize: smallIconFont, color: inkColor, opacity: smallIconOpacity, cursor: 'pointer', background: 'none', border: 'none', lineHeight: 1, padding: 0, transition: iconTransition }}
               onClick={e => { e.stopPropagation(); setCollapsed(v => !v); }}>
               {collapsed ? '▼' : '▲'}
             </button>
-            <button style={{ fontSize: '0.6rem', color: `${inkColor}88`, cursor: 'pointer', background: 'none', border: 'none', lineHeight: 1, padding: 0 }}
+            <button style={{ fontSize: smallIconFont, color: dimColor('88'), cursor: 'pointer', background: 'none', border: 'none', lineHeight: 1, padding: 0, transition: iconTransition }}
               onClick={e => { e.stopPropagation(); cycleShape(); }}>
               {shapeIcon}
             </button>
-            <button style={{ fontSize: '0.6rem', color: `${inkColor}88`, cursor: 'pointer', background: 'none', border: 'none', lineHeight: 1, padding: 0 }}
+            <button style={{ fontSize: smallIconFont, color: dimColor('88'), cursor: 'pointer', background: 'none', border: 'none', lineHeight: 1, padding: 0, transition: iconTransition }}
               onClick={e => { e.stopPropagation(); onDuplicate({ ...note, x: note.x + 24, y: note.y + 24, id: note.id }); }}>
               ⧉
             </button>
-            <button style={{ fontSize: '0.75rem', color: `${inkColor}66`, lineHeight: 1, background: 'none', border: 'none', cursor: 'pointer' }}
+            <button style={{ fontSize: deleteIconFont, color: dimColor('66'), lineHeight: 1, background: 'none', border: 'none', cursor: 'pointer', transition: iconTransition }}
               onClick={() => onDelete(note.id)}>
               ✕
             </button>
           </div>
         ) : (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 8px 4px', flexShrink: 0, gap: 4 }}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 8px 4px', flexShrink: 0, gap: headerGap, transition: 'gap 0.12s ease' }}
             onPointerDown={e => e.stopPropagation()}>
             <div style={{ display: 'flex', gap: 4, alignItems: 'center', position: 'relative' }}>
               <button
-                style={{ width: 14, height: 14, borderRadius: '50%', backgroundColor: color, border: `2px solid ${inkColor}`, cursor: 'pointer', flexShrink: 0, opacity: 0.7 }}
+                style={{ width: swatchSize, height: swatchSize, borderRadius: '50%', backgroundColor: color, border: `2px solid ${inkColor}`, cursor: 'pointer', flexShrink: 0, opacity: hovered ? 1 : 0.7, transition: iconTransition }}
                 onClick={e => { e.stopPropagation(); setShowPalette(v => !v); }}
               />
               {showPalette && (
@@ -430,21 +441,21 @@ const CanvasNote = ({ note, scale, activeTool, pencilColor, onUpdate, onDelete, 
                 </div>
               )}
               <button
-                style={{ fontSize: '0.6rem', color: inkColor, opacity: 0.45, cursor: 'pointer', background: 'none', border: 'none', lineHeight: 1, padding: 0 }}
+                style={{ fontSize: smallIconFont, color: inkColor, opacity: smallIconOpacity, cursor: 'pointer', background: 'none', border: 'none', lineHeight: 1, padding: 0, transition: iconTransition }}
                 onClick={e => { e.stopPropagation(); setCollapsed(v => !v); }}>
                 {collapsed ? '▼' : '▲'}
               </button>
             </div>
             <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-              <button style={{ fontSize: '0.6rem', color: `${inkColor}88`, cursor: 'pointer', background: 'none', border: 'none', lineHeight: 1, padding: 0 }}
+              <button style={{ fontSize: smallIconFont, color: dimColor('88'), cursor: 'pointer', background: 'none', border: 'none', lineHeight: 1, padding: 0, transition: iconTransition }}
                 onClick={e => { e.stopPropagation(); cycleShape(); }}>
                 {shapeIcon}
               </button>
-              <button style={{ fontSize: '0.6rem', color: `${inkColor}88`, cursor: 'pointer', background: 'none', border: 'none', lineHeight: 1, padding: 0 }}
+              <button style={{ fontSize: smallIconFont, color: dimColor('88'), cursor: 'pointer', background: 'none', border: 'none', lineHeight: 1, padding: 0, transition: iconTransition }}
                 onClick={e => { e.stopPropagation(); onDuplicate({ ...note, x: note.x + 24, y: note.y + 24, id: note.id }); }}>
                 ⧉
               </button>
-              <button style={{ fontSize: '0.75rem', color: `${inkColor}66`, lineHeight: 1, background: 'none', border: 'none', cursor: 'pointer' }}
+              <button style={{ fontSize: deleteIconFont, color: dimColor('66'), lineHeight: 1, background: 'none', border: 'none', cursor: 'pointer', transition: iconTransition }}
                 onClick={() => onDelete(note.id)}>
                 ✕
               </button>

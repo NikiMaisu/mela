@@ -23,5 +23,6 @@ public class SchemaUpdater implements ApplicationRunner {
         jdbc.execute("ALTER TABLE strings ADD COLUMN IF NOT EXISTS note_id2 BIGINT");
         jdbc.execute("ALTER TABLE strings ADD COLUMN IF NOT EXISTS style VARCHAR(32) DEFAULT 'thread'");
         jdbc.execute("ALTER TABLE notes ADD COLUMN IF NOT EXISTS shape VARCHAR(32) DEFAULT 'rectangle'");
+        jdbc.update("DELETE FROM strings WHERE x1 = x2 AND y1 = y2");
     }
 }

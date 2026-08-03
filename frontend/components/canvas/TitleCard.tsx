@@ -4,12 +4,22 @@ import { useRef, useState } from 'react';
 
 type Props = {
   scale: number;
+  uiScale: 'large' | 'compact';
 };
 
-const TitleCard = ({ scale }: Props) => {
-  const [pos, setPos] = useState({ x: -220, y: -130 });
+const SIZES = {
+  large: { width: 520, titleFont: '3.75rem', subFont: '1.25rem', padding: '40px 48px 44px', gap: '14px', halfHeight: 89 },
+  compact: { width: 380, titleFont: '2.25rem', subFont: '0.9rem', padding: '20px 26px 24px', gap: '8px', halfHeight: 51 },
+};
+
+const TitleCard = ({ scale, uiScale }: Props) => {
+  const [pos, setPos] = useState(() => {
+    const s = SIZES[uiScale];
+    return { x: -s.width / 2, y: -s.halfHeight };
+  });
   const isDragging = useRef(false);
   const lastPointer = useRef({ x: 0, y: 0 });
+  const s = SIZES[uiScale];
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
@@ -38,16 +48,16 @@ const TitleCard = ({ scale }: Props) => {
         position: 'absolute',
         left: pos.x,
         top: pos.y,
-        width: 440,
+        width: s.width,
         backgroundColor: '#ede0d4',
         border: '10px solid #252422',
         borderRadius: '3px 6px 4px 7px / 7px 3px 6px 4px',
         boxShadow: '16px 16px 0 0 #252422',
         filter: 'url(#hand-drawn)',
-        padding: '32px 40px 36px',
+        padding: s.padding,
         display: 'flex',
         flexDirection: 'column',
-        gap: '12px',
+        gap: s.gap,
         cursor: 'grab',
         userSelect: 'none',
       }}
@@ -57,7 +67,7 @@ const TitleCard = ({ scale }: Props) => {
     >
       <h1
         style={{
-          fontSize: '3rem',
+          fontSize: s.titleFont,
           fontWeight: 900,
           letterSpacing: '-0.02em',
           color: '#252422',
@@ -71,7 +81,7 @@ const TitleCard = ({ scale }: Props) => {
       </h1>
       <p
         style={{
-          fontSize: '1.1rem',
+          fontSize: s.subFont,
           color: '#252422',
           opacity: 0.6,
           margin: 0,

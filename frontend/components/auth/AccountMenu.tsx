@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useAuth } from '@context/AuthContext';
+import { useUIScale } from '@context/UIScaleContext';
 
 type View = 'menu' | 'code-input' | 'credentials-input' | 'code-shown' | 'upgrade';
 
@@ -14,31 +15,31 @@ const cardStyle: React.CSSProperties = {
   color: '#252422',
 };
 
-const inputStyle: React.CSSProperties = {
+const inputStyle = (large: boolean): React.CSSProperties => ({
   width: '100%',
   backgroundColor: 'transparent',
   border: '2px solid #252422',
   borderRadius: '2px 3px 2px 3px / 3px 2px 3px 2px',
-  padding: '6px 10px',
-  fontSize: '0.8rem',
+  padding: large ? '12px 16px' : '6px 10px',
+  fontSize: large ? '1.2rem' : '0.8rem',
   color: '#252422',
   outline: 'none',
   fontFamily: 'inherit',
-};
+});
 
-const btnStyle = (active = true): React.CSSProperties => ({
+const btnStyle = (large: boolean, active = true): React.CSSProperties => ({
   ...cardStyle,
   boxShadow: active ? '4px 4px 0 0 #252422' : 'none',
-  padding: '6px 14px',
-  fontSize: '0.75rem',
+  padding: large ? '13px 20px' : '6px 14px',
+  fontSize: large ? '1.2rem' : '0.75rem',
   cursor: 'pointer',
   width: '100%',
   textAlign: 'left' as const,
   display: 'block',
 });
 
-const linkStyle: React.CSSProperties = {
-  fontSize: '0.72rem',
+const linkStyle = (large: boolean): React.CSSProperties => ({
+  fontSize: large ? '1.1rem' : '0.72rem',
   color: '#252422',
   opacity: 0.6,
   cursor: 'pointer',
@@ -47,13 +48,15 @@ const linkStyle: React.CSSProperties = {
   padding: 0,
   fontFamily: 'inherit',
   textDecoration: 'underline',
-};
+});
 
 const formatCode = (raw: string) =>
   raw.replace(/(.{4})/g, '$1-').replace(/-$/, '');
 
 const AccountMenu = () => {
   const { user, loading, generate, loginWithCode, loginWithCredentials, upgrade, logout } = useAuth();
+  const { uiScale } = useUIScale();
+  const large = uiScale === 'large';
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<View>('menu');
   const [codeInput, setCodeInput] = useState('');
@@ -130,6 +133,8 @@ const AccountMenu = () => {
   };
 
   const buttonLabel = loading ? '...' : user ? (user.username ?? 'account') : 'sign in';
+  const labelSize = large ? '1.25rem' : '0.8rem';
+  const smallSize = large ? '1.05rem' : '0.72rem';
 
   return (
     <div
@@ -139,92 +144,92 @@ const AccountMenu = () => {
       onPointerDown={e => e.stopPropagation()}
     >
       <button
-        style={btnStyle()}
+        style={btnStyle(large)}
         onClick={() => { setOpen(o => !o); if (open) reset(); }}
       >
         {buttonLabel}
       </button>
 
       {open && (
-        <div style={{ ...cardStyle, marginTop: 8, padding: '18px 20px', width: 280, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ ...cardStyle, marginTop: 8, padding: large ? '26px 30px' : '18px 20px', width: large ? 360 : 280, display: 'flex', flexDirection: 'column', gap: large ? 16 : 12 }}>
 
           {view === 'menu' && !user && (
             <>
-              <p style={{ fontSize: '0.8rem', fontWeight: 700, margin: 0 }}>your account</p>
-              <button style={btnStyle()} onClick={handleGenerate}>generate a new id</button>
-              <button style={linkStyle} onClick={() => { setView('code-input'); setError(''); }}>i already have an id</button>
-              <button style={linkStyle} onClick={() => { setView('credentials-input'); setError(''); }}>sign in with email</button>
-              {error && <p style={{ fontSize: '0.72rem', color: '#A81C07', margin: 0 }}>{error}</p>}
+              <p style={{ fontSize: labelSize, fontWeight: 700, margin: 0 }}>your account</p>
+              <button style={btnStyle(large)} onClick={handleGenerate}>generate a new id</button>
+              <button style={linkStyle(large)} onClick={() => { setView('code-input'); setError(''); }}>i already have an id</button>
+              <button style={linkStyle(large)} onClick={() => { setView('credentials-input'); setError(''); }}>sign in with email</button>
+              {error && <p style={{ fontSize: smallSize, color: '#A81C07', margin: 0 }}>{error}</p>}
             </>
           )}
 
           {view === 'code-input' && (
             <>
-              <p style={{ fontSize: '0.8rem', fontWeight: 700, margin: 0 }}>enter your id</p>
+              <p style={{ fontSize: labelSize, fontWeight: 700, margin: 0 }}>enter your id</p>
               <input
-                style={{ ...inputStyle, fontFamily: 'monospace', letterSpacing: '0.05em' }}
+                style={{ ...inputStyle(large), fontFamily: 'monospace', letterSpacing: '0.05em' }}
                 placeholder="xxxx-xxxx-xxxx-xxxx-xxxx"
                 value={codeInput}
                 onChange={e => setCodeInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleLoginCode()}
               />
-              <button style={btnStyle()} onClick={handleLoginCode}>log in</button>
-              {error && <p style={{ fontSize: '0.72rem', color: '#A81C07', margin: 0 }}>{error}</p>}
-              <button style={linkStyle} onClick={() => { setView('menu'); setError(''); }}>back</button>
+              <button style={btnStyle(large)} onClick={handleLoginCode}>log in</button>
+              {error && <p style={{ fontSize: smallSize, color: '#A81C07', margin: 0 }}>{error}</p>}
+              <button style={linkStyle(large)} onClick={() => { setView('menu'); setError(''); }}>back</button>
             </>
           )}
 
           {view === 'credentials-input' && (
             <>
-              <p style={{ fontSize: '0.8rem', fontWeight: 700, margin: 0 }}>sign in</p>
-              <input style={inputStyle} placeholder="email" type="email" value={email} onChange={e => setEmail(e.target.value)} />
-              <input style={inputStyle} placeholder="password" type="password" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLoginCredentials()} />
-              <button style={btnStyle()} onClick={handleLoginCredentials}>sign in</button>
-              {error && <p style={{ fontSize: '0.72rem', color: '#A81C07', margin: 0 }}>{error}</p>}
-              <button style={linkStyle} onClick={() => { setView('menu'); setError(''); }}>back</button>
+              <p style={{ fontSize: labelSize, fontWeight: 700, margin: 0 }}>sign in</p>
+              <input style={inputStyle(large)} placeholder="email" type="email" value={email} onChange={e => setEmail(e.target.value)} />
+              <input style={inputStyle(large)} placeholder="password" type="password" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleLoginCredentials()} />
+              <button style={btnStyle(large)} onClick={handleLoginCredentials}>sign in</button>
+              {error && <p style={{ fontSize: smallSize, color: '#A81C07', margin: 0 }}>{error}</p>}
+              <button style={linkStyle(large)} onClick={() => { setView('menu'); setError(''); }}>back</button>
             </>
           )}
 
           {view === 'code-shown' && (
             <>
-              <p style={{ fontSize: '0.8rem', fontWeight: 700, margin: 0 }}>your new id</p>
-              <p style={{ fontFamily: 'monospace', fontSize: '0.9rem', letterSpacing: '0.08em', background: 'rgba(37,36,34,0.07)', padding: '10px 12px', borderRadius: 2, margin: 0, wordBreak: 'break-all' }}>
+              <p style={{ fontSize: labelSize, fontWeight: 700, margin: 0 }}>your new id</p>
+              <p style={{ fontFamily: 'monospace', fontSize: large ? '1.3rem' : '0.9rem', letterSpacing: '0.08em', background: 'rgba(37,36,34,0.07)', padding: '10px 12px', borderRadius: 2, margin: 0, wordBreak: 'break-all' }}>
                 {formatCode(shownCode)}
               </p>
-              <button style={{ ...btnStyle(), fontSize: '0.72rem' }} onClick={copyCode}>
+              <button style={{ ...btnStyle(large), fontSize: smallSize }} onClick={copyCode}>
                 {copied ? 'copied' : 'copy to clipboard'}
               </button>
-              <p style={{ fontSize: '0.72rem', opacity: 0.6, margin: 0 }}>
+              <p style={{ fontSize: smallSize, opacity: 0.6, margin: 0 }}>
                 save this somewhere safe, it's the only way back in to your account
               </p>
-              <button style={btnStyle()} onClick={close}>done</button>
+              <button style={btnStyle(large)} onClick={close}>done</button>
             </>
           )}
 
           {view === 'menu' && user && (
             <>
-              <p style={{ fontSize: '0.8rem', fontWeight: 700, margin: 0 }}>
+              <p style={{ fontSize: labelSize, fontWeight: 700, margin: 0 }}>
                 {user.username ? user.username : 'code account'}
               </p>
-              {user.email && <p style={{ fontSize: '0.72rem', opacity: 0.6, margin: 0 }}>{user.email}</p>}
+              {user.email && <p style={{ fontSize: smallSize, opacity: 0.6, margin: 0 }}>{user.email}</p>}
               {!user.hasCredentials && (
-                <button style={linkStyle} onClick={() => { setView('upgrade'); setError(''); }}>
+                <button style={linkStyle(large)} onClick={() => { setView('upgrade'); setError(''); }}>
                   add email and password
                 </button>
               )}
-              <button style={{ ...btnStyle(), marginTop: 4 }} onClick={handleLogout}>sign out</button>
+              <button style={{ ...btnStyle(large), marginTop: 4 }} onClick={handleLogout}>sign out</button>
             </>
           )}
 
           {view === 'upgrade' && (
             <>
-              <p style={{ fontSize: '0.8rem', fontWeight: 700, margin: 0 }}>add email and password</p>
-              <input style={inputStyle} placeholder="username (optional)" value={username} onChange={e => setUsername(e.target.value)} />
-              <input style={inputStyle} placeholder="email" type="email" value={email} onChange={e => setEmail(e.target.value)} />
-              <input style={inputStyle} placeholder="password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
-              <button style={btnStyle()} onClick={handleUpgrade}>save</button>
-              {error && <p style={{ fontSize: '0.72rem', color: '#A81C07', margin: 0 }}>{error}</p>}
-              <button style={linkStyle} onClick={() => { setView('menu'); setError(''); }}>back</button>
+              <p style={{ fontSize: labelSize, fontWeight: 700, margin: 0 }}>add email and password</p>
+              <input style={inputStyle(large)} placeholder="username (optional)" value={username} onChange={e => setUsername(e.target.value)} />
+              <input style={inputStyle(large)} placeholder="email" type="email" value={email} onChange={e => setEmail(e.target.value)} />
+              <input style={inputStyle(large)} placeholder="password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
+              <button style={btnStyle(large)} onClick={handleUpgrade}>save</button>
+              {error && <p style={{ fontSize: smallSize, color: '#A81C07', margin: 0 }}>{error}</p>}
+              <button style={linkStyle(large)} onClick={() => { setView('menu'); setError(''); }}>back</button>
             </>
           )}
 

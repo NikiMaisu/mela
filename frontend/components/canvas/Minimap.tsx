@@ -11,6 +11,7 @@ type Props = {
   viewScale: number;
   screenW: number;
   screenH: number;
+  uiScale: 'large' | 'compact';
   onPanTo: (worldX: number, worldY: number) => void;
 };
 
@@ -18,7 +19,7 @@ const W = 180;
 const H = 110;
 const PAD = 10;
 
-const Minimap = ({ notes, strings, viewX, viewY, viewScale, screenW, screenH, onPanTo }: Props) => {
+const Minimap = ({ notes, strings, viewX, viewY, viewScale, screenW, screenH, uiScale, onPanTo }: Props) => {
   if (notes.length === 0 && strings.length === 0) return null;
 
   const allX = [
@@ -62,7 +63,7 @@ const Minimap = ({ notes, strings, viewX, viewY, viewScale, screenW, screenH, on
     <div
       style={{
         position: 'fixed',
-        bottom: 52,
+        bottom: uiScale === 'large' ? 100 : 60,
         right: 16,
         zIndex: 40,
         backgroundColor: '#ede0d4',

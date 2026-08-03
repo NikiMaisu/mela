@@ -1,4 +1,5 @@
 import { AuthProvider } from '@context/AuthContext';
+import { UIScaleProvider } from '@context/UIScaleContext';
 import AccountMenu from '@components/auth/AccountMenu';
 import '@styles/globals.css';
 import { NextIntlClientProvider } from 'next-intl';
@@ -44,10 +45,12 @@ const RootLayout = async ({
           </defs>
         </svg>
         <NextIntlClientProvider locale={locale} messages={messages}>
-          <AuthProvider>
-            <AccountMenu />
-            <main>{children}</main>
-          </AuthProvider>
+          <UIScaleProvider>
+            <AuthProvider>
+              <AccountMenu />
+              <main>{children}</main>
+            </AuthProvider>
+          </UIScaleProvider>
         </NextIntlClientProvider>
       </body>
     </html>
