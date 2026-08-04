@@ -31,6 +31,9 @@ const corner = (pos: Point, size: Size): Point => ({
   y: pos.y + size.height,
 });
 
+const formatCode = (raw: string) =>
+  raw.replace(/(.{4})/g, '$1-').replace(/-$/, '');
+
 const TYPED_TEXT = 'double-click anywhere\non the board to add a note';
 const TYPE_INTERVAL = 55;
 
@@ -87,6 +90,8 @@ const IntroDemo = ({ onFinish }: Props) => {
   const [smallNotesShown, setSmallNotesShown] = useState(0);
   const [generating, setGenerating] = useState(false);
   const [genError, setGenError] = useState('');
+  const [shownCode, setShownCode] = useState('');
+  const [copied, setCopied] = useState(false);
   const [viewport, setViewport] = useState({ width: 1440, height: 900 });
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const intervals = useRef<ReturnType<typeof setInterval>[]>([]);
@@ -122,12 +127,19 @@ const IntroDemo = ({ onFinish }: Props) => {
     setGenerating(true);
     setGenError('');
     try {
-      await generate();
-      finish();
+      const code = await generate();
+      setShownCode(code);
     } catch {
       setGenError('something went wrong, try again');
+    } finally {
       setGenerating(false);
     }
+  };
+
+  const copyCode = () => {
+    navigator.clipboard.writeText(formatCode(shownCode));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   useEffect(() => {
@@ -523,48 +535,106 @@ const IntroDemo = ({ onFinish }: Props) => {
           }}
           onClick={e => e.stopPropagation()}
         >
-          <h2 style={{ fontSize: '2.1rem', margin: '0 0 14px', color: '#252422' }}>ready to make this yours?</h2>
-          <p style={{ fontSize: '1.25rem', color: '#252422', opacity: 0.75, margin: '0 0 10px' }}>
-            generate a free id to start adding your own notes and strings
-          </p>
-          <p style={{ fontSize: '1.05rem', color: '#252422', opacity: 0.6, margin: '0 0 26px', fontStyle: 'italic' }}>
-            it's completely anonymous, no email or personal info needed
-          </p>
-          <button
-            onClick={handleGenerate}
-            disabled={generating}
-            style={{
-              width: '100%',
-              backgroundColor: '#252422',
-              color: '#ede0d4',
-              border: '3px solid #252422',
-              borderRadius: '2px 4px 3px 4px / 4px 2px 4px 3px',
-              boxShadow: '5px 5px 0 0 #252422',
-              padding: '16px 24px',
-              fontSize: '1.4rem',
-              cursor: generating ? 'default' : 'pointer',
-              opacity: generating ? 0.6 : 1,
-            }}
-          >
-            {generating ? 'generating...' : 'generate my id'}
-          </button>
-          {genError && <p style={{ fontSize: '0.95rem', color: '#A81C07', margin: '12px 0 0' }}>{genError}</p>}
-          <button
-            onClick={finish}
-            style={{
-              display: 'block',
-              margin: '20px auto 0',
-              fontSize: '1.05rem',
-              color: '#252422',
-              opacity: 0.65,
-              background: 'none',
-              border: 'none',
-              textDecoration: 'underline',
-              cursor: 'pointer',
-            }}
-          >
-            I already have an id
-          </button>
+          {shownCode ? (
+            <>
+              <h2 style={{ fontSize: '2.1rem', margin: '0 0 14px', color: '#252422' }}>your new id</h2>
+              <p
+                style={{
+                  fontFamily: 'monospace',
+                  fontSize: '1.4rem',
+                  letterSpacing: '0.08em',
+                  background: 'rgba(37,36,34,0.07)',
+                  padding: '14px 16px',
+                  borderRadius: 4,
+                  margin: '0 0 18px',
+                  wordBreak: 'break-all',
+                  color: '#252422',
+                }}
+              >
+                {formatCode(shownCode)}
+              </p>
+              <button
+                onClick={copyCode}
+                style={{
+                  width: '100%',
+                  backgroundColor: '#252422',
+                  color: '#ede0d4',
+                  border: '3px solid #252422',
+                  borderRadius: '2px 4px 3px 4px / 4px 2px 4px 3px',
+                  boxShadow: '5px 5px 0 0 #252422',
+                  padding: '16px 24px',
+                  fontSize: '1.4rem',
+                  cursor: 'pointer',
+                }}
+              >
+                {copied ? 'copied!' : 'copy to clipboard'}
+              </button>
+              <p style={{ fontSize: '1.05rem', color: '#252422', opacity: 0.7, margin: '18px 0 26px' }}>
+                save this somewhere safe, it's the only way back in to your account
+              </p>
+              <button
+                onClick={finish}
+                style={{
+                  width: '100%',
+                  backgroundColor: '#ede0d4',
+                  color: '#252422',
+                  border: '3px solid #252422',
+                  borderRadius: '2px 4px 3px 4px / 4px 2px 4px 3px',
+                  boxShadow: '5px 5px 0 0 #252422',
+                  padding: '14px 24px',
+                  fontSize: '1.2rem',
+                  cursor: 'pointer',
+                }}
+              >
+                done
+              </button>
+            </>
+          ) : (
+            <>
+              <h2 style={{ fontSize: '2.1rem', margin: '0 0 14px', color: '#252422' }}>ready to make this yours?</h2>
+              <p style={{ fontSize: '1.25rem', color: '#252422', opacity: 0.75, margin: '0 0 10px' }}>
+                generate a free id to start adding your own notes and strings
+              </p>
+              <p style={{ fontSize: '1.05rem', color: '#252422', opacity: 0.6, margin: '0 0 26px', fontStyle: 'italic' }}>
+                it's completely anonymous, no email or personal info needed
+              </p>
+              <button
+                onClick={handleGenerate}
+                disabled={generating}
+                style={{
+                  width: '100%',
+                  backgroundColor: '#252422',
+                  color: '#ede0d4',
+                  border: '3px solid #252422',
+                  borderRadius: '2px 4px 3px 4px / 4px 2px 4px 3px',
+                  boxShadow: '5px 5px 0 0 #252422',
+                  padding: '16px 24px',
+                  fontSize: '1.4rem',
+                  cursor: generating ? 'default' : 'pointer',
+                  opacity: generating ? 0.6 : 1,
+                }}
+              >
+                {generating ? 'generating...' : 'generate my id'}
+              </button>
+              {genError && <p style={{ fontSize: '0.95rem', color: '#A81C07', margin: '12px 0 0' }}>{genError}</p>}
+              <button
+                onClick={finish}
+                style={{
+                  display: 'block',
+                  margin: '20px auto 0',
+                  fontSize: '1.05rem',
+                  color: '#252422',
+                  opacity: 0.65,
+                  background: 'none',
+                  border: 'none',
+                  textDecoration: 'underline',
+                  cursor: 'pointer',
+                }}
+              >
+                I already have an id
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
