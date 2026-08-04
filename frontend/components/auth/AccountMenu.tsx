@@ -17,6 +17,7 @@ const cardStyle: React.CSSProperties = {
 
 const inputStyle = (large: boolean): React.CSSProperties => ({
   width: '100%',
+  boxSizing: 'border-box',
   backgroundColor: 'transparent',
   border: '2px solid #252422',
   borderRadius: '2px 3px 2px 3px / 3px 2px 3px 2px',
