@@ -806,7 +806,7 @@ const Canvas = () => {
         {isCutting
           ? 'slide through strings to cut them'
           : activeTool === 'pointer'
-          ? 'double-click to add a note · hold c to cut · ⌘f search · a s p e switch tools'
+          ? 'double-click to add a note · hold c to cut · cmd + f to search · a s p e switch tools'
           : activeTool === 'string'
           ? 'click to pin · click again to connect · esc to cancel'
           : activeTool === 'pencil'

@@ -224,6 +224,7 @@ const IntroDemo = ({ onFinish }: Props) => {
         cursor: phase === 'playing' ? 'pointer' : 'default',
       }}
       onClick={() => { if (phase === 'playing') goToCta(); }}
+      onPointerDown={e => e.stopPropagation()}
     >
       {phase === 'playing' && (
         <button
