@@ -4,6 +4,12 @@ import AccountMenu from '@components/auth/AccountMenu';
 import '@styles/globals.css';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
+import type { Viewport } from 'next';
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+};
 
 const RootLayout = async ({
   children,

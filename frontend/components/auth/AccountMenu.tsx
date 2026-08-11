@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@context/AuthContext';
 import { useUIScale } from '@context/UIScaleContext';
 
 type View = 'menu' | 'code-input' | 'credentials-input' | 'code-shown' | 'upgrade';
+
+const MOBILE_BREAKPOINT = 768;
 
 const cardStyle: React.CSSProperties = {
   backgroundColor: '#ede0d4',
@@ -67,6 +69,11 @@ const AccountMenu = () => {
   const [shownCode, setShownCode] = useState('');
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    setIsMobile(window.innerWidth < MOBILE_BREAKPOINT);
+  }, []);
 
   const reset = () => {
     setView('menu');
@@ -157,9 +164,9 @@ const AccountMenu = () => {
           {view === 'menu' && !user && (
             <>
               <p style={{ fontSize: labelSize, fontWeight: 700, margin: 0 }}>your account</p>
-              <button style={btnStyle(large)} onClick={handleGenerate}>generate a new id</button>
-              <button style={linkStyle(large)} onClick={() => { setView('code-input'); setError(''); }}>i already have an id</button>
-              <button style={linkStyle(large)} onClick={() => { setView('credentials-input'); setError(''); }}>sign in with email</button>
+              {!isMobile && <button style={btnStyle(large)} onClick={handleGenerate}>generate a new id</button>}
+              {!isMobile && <button style={linkStyle(large)} onClick={() => { setView('code-input'); setError(''); }}>i already have an id</button>}
+              <button style={isMobile ? btnStyle(large) : linkStyle(large)} onClick={() => { setView('credentials-input'); setError(''); }}>sign in with email</button>
               {error && <p style={{ fontSize: smallSize, color: '#A81C07', margin: 0 }}>{error}</p>}
             </>
           )}

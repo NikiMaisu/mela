@@ -1,25 +1,32 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 type Props = {
   scale: number;
   uiScale: 'large' | 'compact';
+  isMobile?: boolean;
 };
 
 const SIZES = {
   large: { width: 520, titleFont: '3.75rem', subFont: '1.25rem', padding: '40px 48px 44px', gap: '14px', halfHeight: 89 },
   compact: { width: 380, titleFont: '2.25rem', subFont: '0.9rem', padding: '20px 26px 24px', gap: '8px', halfHeight: 51 },
+  mobile: { width: 260, titleFont: '2rem', subFont: '0.8rem', padding: '18px 22px 20px', gap: '6px', halfHeight: 45 },
 };
 
-const TitleCard = ({ scale, uiScale }: Props) => {
+const TitleCard = ({ scale, uiScale, isMobile }: Props) => {
+  const sizeKey = isMobile ? 'mobile' : uiScale;
   const [pos, setPos] = useState(() => {
-    const s = SIZES[uiScale];
+    const s = SIZES[sizeKey];
     return { x: -s.width / 2, y: -s.halfHeight };
   });
   const isDragging = useRef(false);
   const lastPointer = useRef({ x: 0, y: 0 });
-  const s = SIZES[uiScale];
+  const s = SIZES[sizeKey];
+
+  useEffect(() => {
+    if (isMobile) setPos({ x: -s.width / 2, y: -s.halfHeight });
+  }, [isMobile]);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;

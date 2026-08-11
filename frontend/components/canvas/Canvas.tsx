@@ -67,6 +67,7 @@ const bezierIntersectsCut = (
 const randomRotation = () => (Math.random() - 0.5) * 5.5;
 
 const CANVAS_ERASER_RADIUS = 16;
+const MOBILE_BREAKPOINT = 768;
 
 const strokeNearPoint = (stroke: CanvasStroke, wx: number, wy: number, r: number): boolean => {
   const pts = stroke.points;
@@ -117,6 +118,7 @@ const Canvas = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const { uiScale, toggleUiScale } = useUIScale();
   const [showIntro, setShowIntro] = useState(false);
+  const isMobile = screenSize.width < MOBILE_BREAKPOINT;
   const containerRef = useRef<HTMLDivElement>(null);
   const isPanning = useRef(false);
   const lastPointer = useRef({ x: 0, y: 0 });
@@ -600,7 +602,7 @@ const Canvas = () => {
         className="absolute top-0 left-0 origin-top-left"
         style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`, zIndex: 20 }}
       >
-        {!showIntro && <TitleCard scale={transform.scale} uiScale={uiScale} />}
+        {!showIntro && <TitleCard scale={transform.scale} uiScale={uiScale} isMobile={isMobile} />}
         {stickers.map(sticker => (
           <CanvasSticker
             key={sticker.id}
@@ -791,32 +793,36 @@ const Canvas = () => {
         onPanTo={panTo}
       />
 
-      <Toolbar
-        activeTool={activeTool}
-        pencilColor={pencilColor}
-        uiScale={uiScale}
-        onToolChange={tool => { setActiveTool(tool); if (tool !== 'string') { pendingPinRef.current = null; setPendingPin(null); } }}
-        onPencilColorChange={setPencilColor}
-      />
+      {!isMobile && (
+        <Toolbar
+          activeTool={activeTool}
+          pencilColor={pencilColor}
+          uiScale={uiScale}
+          onToolChange={tool => { setActiveTool(tool); if (tool !== 'string') { pendingPinRef.current = null; setPendingPin(null); } }}
+          onPencilColorChange={setPencilColor}
+        />
+      )}
 
-      <p
-        className="fixed top-4 left-1/2 -translate-x-1/2 text-ink/50 pointer-events-none text-center"
-        style={{ zIndex: 45, fontSize: uiScale === 'large' ? '1.3rem' : '0.85rem', maxWidth: '55vw' }}
-      >
-        {isCutting
-          ? 'slide through strings to cut them'
-          : activeTool === 'pointer'
-          ? 'double-click to add a note · hold c to cut · cmd + f to search · a s p e switch tools'
-          : activeTool === 'string'
-          ? 'click to pin · click again to connect · esc to cancel'
-          : activeTool === 'pencil'
-          ? 'draw on canvas or inside notes · pick ink color below'
-          : activeTool === 'sticker'
-          ? 'click canvas to stamp · pick emoji below'
-          : activeTool === 'eraser'
-          ? 'click a stroke to remove it entirely'
-          : 'drag to erase parts of strokes'}
-      </p>
+      {!isMobile && (
+        <p
+          className="fixed top-4 left-1/2 -translate-x-1/2 text-ink/50 pointer-events-none text-center"
+          style={{ zIndex: 45, fontSize: uiScale === 'large' ? '1.3rem' : '0.85rem', maxWidth: '55vw' }}
+        >
+          {isCutting
+            ? 'slide through strings to cut them'
+            : activeTool === 'pointer'
+            ? 'double-click to add a note · hold c to cut · cmd + f to search · a s p e switch tools'
+            : activeTool === 'string'
+            ? 'click to pin · click again to connect · esc to cancel'
+            : activeTool === 'pencil'
+            ? 'draw on canvas or inside notes · pick ink color below'
+            : activeTool === 'sticker'
+            ? 'click canvas to stamp · pick emoji below'
+            : activeTool === 'eraser'
+            ? 'click a stroke to remove it entirely'
+            : 'drag to erase parts of strokes'}
+        </p>
+      )}
 
       {showIntro && <IntroDemo onFinish={() => setShowIntro(false)} />}
     </div>
